@@ -288,11 +288,27 @@ cleanup
 wait_quota_free > /dev/null
 apply_pod "$A" default-pod "$SLEEP_CMD" > /dev/null
 default_limit="$(k -n "$A" get pod default-pod -o jsonpath='{.spec.containers[0].resources.limits.memory}')"
-if [ "$default_limit" = "256Mi" ]; then
-  pass "a pod without resources receives the default limit (256Mi)"
+if [ "$default_limit" = "100Mi" ]; then
+  pass "a pod without resources receives the default limit (100Mi)"
 else
-  fail "a pod without resources received limit '$default_limit', expected 256Mi"
+  fail "a pod without resources received limit '$default_limit', expected 100Mi"
 fi
+
+# The small tier allows 10 pods. They must fit even when none of them sets resources,
+# and the quota error for the eleventh must name the pod count. Ten default pods also
+# use the whole CPU request quota (10 x 50m = 500m), so CPU may be named as well.
+cleanup
+wait_quota_free > /dev/null
+created=0
+for i in $(seq 1 10); do
+  apply_pod "$A" "default-$i" "$SLEEP_CMD" > /dev/null 2>&1 && created=$((created + 1))
+done
+if [ "$created" -eq 10 ]; then
+  pass "10 pods without resources fit in the small tier"
+else
+  fail "only $created of 10 pods without resources fitted in the small tier"
+fi
+expect_blocked "an eleventh pod is rejected by the pod count of the quota" "pods=" apply_pod "$A" default-11 "$SLEEP_CMD"
 
 echo
 if [ "$failures" -gt 0 ]; then
