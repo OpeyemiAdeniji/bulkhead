@@ -12,7 +12,7 @@
 # Usage: tests/policy-live/run.sh (or: make test-policy-live)
 set -uo pipefail
 
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../.." || exit 1
 
 CONTEXT="${KUBE_CONTEXT:-kind-tenant-platform}"
 A="tenant-alpha"

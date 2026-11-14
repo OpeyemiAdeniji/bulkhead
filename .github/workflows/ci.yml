@@ -17,10 +17,10 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          python-version: "3.12"
+          python-version: "3.14"
       - name: Run pre-commit on all files
         run: |
           pip install pre-commit
@@ -30,10 +30,10 @@ jobs:
     name: secret-scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -41,8 +41,8 @@ jobs:
     name: contract
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
       - name: Install Python dependencies
@@ -55,18 +55,12 @@ jobs:
   chart:
     name: chart
     runs-on: ubuntu-latest
-    env:
-      HELM_VERSION: v4.3.1
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Helm
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install pinned tools
         run: |
-          curl -fsSLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
-          curl -fsSLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
-          sha256sum -c "helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
-          tar -xzf "helm-${HELM_VERSION}-linux-amd64.tar.gz"
-          sudo mv linux-amd64/helm /usr/local/bin/helm
-          helm version
+          bash scripts/install-tools.sh "$HOME/.local/bin" helm kubeconform
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Lint and render the tenant chart
         run: make chart-test
 
@@ -75,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install pinned tools
         run: |
           bash scripts/install-tools.sh "$HOME/.local/bin" kind kubectl helm
@@ -99,7 +93,7 @@ jobs:
     name: policy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install the Kyverno CLI
         run: |
           bash scripts/install-tools.sh "$HOME/.local/bin" kyverno
@@ -112,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install pinned tools
         run: |
           bash scripts/install-tools.sh "$HOME/.local/bin" kind kubectl helm
@@ -131,5 +125,5 @@ jobs:
           kubectl --context kind-tenant-platform get pods -A -o wide || true
           kubectl --context kind-tenant-platform get events -A --sort-by=.lastTimestamp | tail -50 || true
 
-  # Add project-specific jobs here (validate, test, build) as the project grows.
-  # Keep the job names stable: branch protection matches required checks by name.
+  # Keep the job names stable: the ruleset matches required checks by name.
+  # Actions are pinned to commit SHAs. Dependabot proposes updates (.github/dependabot.yml).

@@ -2,13 +2,20 @@
 # Tests for the tenant chart.
 # - Every tenant file must lint and render.
 # - Every rendered object must carry the cost label, so showback never has gaps.
+# - Every rendered object must match the Kubernetes API schema (kubeconform).
 # - An unknown size must make the chart fail with a clear message.
 # Usage: scripts/chart-test.sh (or: make chart-test)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-command -v helm > /dev/null || { echo "missing tool: helm" >&2; exit 1; }
+for tool in helm kubeconform; do
+  command -v "$tool" > /dev/null || { echo "missing tool: $tool (run scripts/install-tools.sh)" >&2; exit 1; }
+done
+
+# The Kubernetes version whose API schema the objects are checked against.
+# Keep it equal to the node image in platform/kind/kind-config.yaml.
+K8S_SCHEMA_VERSION="${K8S_SCHEMA_VERSION:-1.37.0}"
 
 chart="platform/charts/tenant"
 failures=0
@@ -33,6 +40,16 @@ for file in tenants/*.yaml; do
     echo "pass  render   $file ($objects objects, all with the cost label)"
   else
     echo "FAIL  labels   $file ($labelled of $objects objects have the cost label)"
+    failures=$((failures + 1))
+  fi
+
+  # Check every rendered object against the Kubernetes API schema, without a cluster.
+  # -strict also rejects fields that the schema does not know, such as a misspelt key.
+  if out="$(kubeconform -strict -summary -kubernetes-version "$K8S_SCHEMA_VERSION" <<< "$rendered" 2>&1)"; then
+    echo "pass  schema   $file ($(tail -1 <<< "$out"))"
+  else
+    echo "FAIL  schema   $file"
+    echo "$out"
     failures=$((failures + 1))
   fi
 done
