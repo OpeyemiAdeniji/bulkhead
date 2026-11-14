@@ -3,7 +3,7 @@
 # Usage: scripts/cluster-up.sh (or: make cluster-up)
 set -euo pipefail
 
-CLUSTER_NAME="tenant-platform"
+CLUSTER_NAME="bulkhead"
 CALICO_VERSION="v3.33.0"
 CALICO_BASE="https://raw.githubusercontent.com/projectcalico/calico/${CALICO_VERSION}/manifests"
 

@@ -5,7 +5,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-CONTEXT="kind-tenant-platform"
+CONTEXT="kind-bulkhead"
 VERSION="$(tr -d '[:space:]' < platform/kyverno/chart-version)"
 
 for tool in helm kubectl; do

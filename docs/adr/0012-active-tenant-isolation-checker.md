@@ -33,7 +33,7 @@ Who needs it: platform teams that share a cluster between teams and must show, n
 2. **Contribute active checks to an existing tool** (NetAssert for traffic, or `kubectl-audit-tenant` for the tenant view).
    - Pros: no new project to maintain, and existing users get the checks.
    - Cons: NetAssert is about network flows and has no concept of tenants, access or quotas. `kubectl-audit-tenant` is read-only by design ("it never changes the cluster"), and active tests would break that promise. Both owners would have to want it.
-3. **Build a separate checker, working name `tenantcheck`, that runs active tests against any cluster.**
+3. **Build a separate checker, the `bulkhead check` command (ADR 0013), that runs active tests against any cluster.**
    - Pros: it fills the gap above, and it is useful to people who never use this platform. The isolation suite is already its specification.
    - Cons: a second deliverable to build, release and maintain. Active tests create pods and send traffic, so they need clear safety rules, clean-up and a dry-run mode. It must work with tenancy models it was not built with.
 

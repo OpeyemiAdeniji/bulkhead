@@ -14,7 +14,7 @@ set -uo pipefail
 
 cd "$(dirname "$0")/../.." || exit 1
 
-CONTEXT="${KUBE_CONTEXT:-kind-tenant-platform}"
+CONTEXT="${KUBE_CONTEXT:-kind-bulkhead}"
 A="tenant-alpha"
 POLICY="disallow-latest-image-tag"
 RUNBOOK="docs/runbooks/policy-disallow-latest-tag.md"
@@ -263,7 +263,7 @@ if ! k -n "$G" get pod live-old-pod > /dev/null 2>&1 || ! k -n "$G" get deployme
   echo "setup failed: could not create the latest workloads in the scratch namespace $G" >&2
   exit 2
 fi
-k label namespace "$G" app.kubernetes.io/managed-by=k8s-tenant-platform > /dev/null 2>&1
+k label namespace "$G" app.kubernetes.io/managed-by=bulkhead > /dev/null 2>&1
 sleep 3
 expect_ok "an unrelated change (a label) to a running pod with busybox:latest is allowed" k -n "$G" label pod live-old-pod touched=yes --overwrite
 expect_blocked "swapping the image of that pod for another latest image is denied" "Policy $POLICY failed" k -n "$G" patch pod live-old-pod --type=json -p '[{"op":"replace","path":"/spec/containers/0/image","value":"alpine:latest"}]'

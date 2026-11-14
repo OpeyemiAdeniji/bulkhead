@@ -7,7 +7,7 @@ This roadmap takes the project from a portfolio project to an open source projec
 Two things, which can be used apart:
 
 1. **The platform:** a reference way to give each team a namespace on a shared cluster from one file in a pull request, with quotas, access rules, default-deny network policies and admission policies with developer-friendly messages and expiring exceptions. It is installed with Helm on any conformant cluster, and kind is the way to try it locally.
-2. **The checker** (working name `tenantcheck`): a CLI that acts as a tenant on any cluster and actively tries to break isolation between tenants: network, secrets, access, guardrails, quotas, noisy neighbours and admission. It reports what held, with evidence. ADR 0012 explains why it is built and what already exists.
+2. **The checker** (`bulkhead check`): a CLI that acts as a tenant on any cluster and actively tries to break isolation between tenants: network, secrets, access, guardrails, quotas, noisy neighbours and admission. It reports what held, with evidence. ADR 0012 explains why it is built and what already exists.
 
 The checker is the part that solves an open problem: platform teams that share a cluster are asked to show that teams are separated, and no maintained tool tests that end to end. The platform is the reference setup that the checker is developed and tested against.
 
@@ -65,7 +65,7 @@ Done when: the platform's own continuous integration uses the checker instead of
 - A pull request comment that previews what a tenant file will create.
 - The platform SLO: time from merge to a ready tenant, measured over many runs, with the method.
 - Cost showback: a report from quota multiplied by documented unit prices, generated in continuous integration.
-- A tenant CI template with the Trivy gate.
+- A tenant CI template with the Trivy gate, and an optional AWS Emulator step, so that tenant applications that use AWS services (S3, DynamoDB, SQS and others) can test against them in continuous integration without an AWS account.
 - A report of active policy exceptions and those that expire soon.
 
 Done when: the definition of done in the problem statement holds without manual steps.
@@ -92,6 +92,11 @@ Done when: the site is live, every claim on it links to evidence, and the builde
 ### Phase 6: Amazon EKS
 
 Run the platform and the checker on EKS with OpenTofu, an automatic teardown and a stated cost ceiling. Publish the results next to the kind results, including what differs.
+
+- **The OpenTofu code is tested against AWS Emulator in continuous integration** on every pull request: network, cluster, node groups and access entries. Real EKS is used only for the isolation runs, which keeps the cost down.
+- **Access entries from the tenant file:** the tenant's admin and viewer groups become EKS access entries, tested against the emulator first.
+- **Optional per-tenant AWS resources** (for example a bucket and a Pod Identity role per tenant), and a cloud check category in the checker that shows that one tenant's pods cannot use another tenant's role.
+- **The emulator is never evidence for an isolation claim.** AWS states that it does not evaluate IAM policies as AWS does, that a request AWS denies may succeed in it, and that it must not be used to test whether an application is secure. Every result says whether it ran on the emulator or on AWS.
 
 ## What "solid" means here
 

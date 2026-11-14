@@ -3,6 +3,6 @@
 # Usage: scripts/cluster-down.sh (or: make cluster-down)
 set -euo pipefail
 
-CLUSTER_NAME="tenant-platform"
+CLUSTER_NAME="bulkhead"
 
 kind delete cluster --name "$CLUSTER_NAME"

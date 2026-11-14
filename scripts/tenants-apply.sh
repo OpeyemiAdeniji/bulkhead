@@ -7,7 +7,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-CONTEXT="kind-tenant-platform"
+CONTEXT="kind-bulkhead"
 
 for tool in helm kubectl; do
   command -v "$tool" > /dev/null || { echo "missing tool: $tool" >&2; exit 1; }

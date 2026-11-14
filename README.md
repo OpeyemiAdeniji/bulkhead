@@ -1,8 +1,10 @@
-# k8s-tenant-platform
+# Bulkhead
+
+> Formerly `k8s-tenant-platform`. A bulkhead is the sealed wall inside a ship that keeps one flooded compartment from sinking the rest.
 
 > A local reference implementation of a self-service, multi-tenant Kubernetes platform. A team asks for a space by adding one file in a pull request, and the platform builds it, with isolation that automated tests prove.
 
-[![CI](https://github.com/OpeyemiAdeniji/k8s-tenant-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/OpeyemiAdeniji/k8s-tenant-platform/actions/workflows/ci.yml)
+[![CI](https://github.com/OpeyemiAdeniji/bulkhead/actions/workflows/ci.yml/badge.svg)](https://github.com/OpeyemiAdeniji/bulkhead/actions/workflows/ci.yml)
 
 **Status: v0.1.0.** This is a portfolio project. It is not a production platform, it has no real tenants, and no real team has used it. The section "Known limits" says what is missing.
 
@@ -102,7 +104,7 @@ Parts that are tied to Linux on x86-64:
 - `scripts/install-tools.sh` downloads the `linux-amd64` binaries and uses `sha256sum`.
 - `tests/isolation/run.sh` uses `mapfile` (bash 4 or newer) and `date +%s%N` (a GNU feature). I expect both to fail with the default tools of macOS, but I have not tried it.
 
-Tracked in https://github.com/OpeyemiAdeniji/k8s-tenant-platform/issues/14.
+Tracked in https://github.com/OpeyemiAdeniji/bulkhead/issues/14.
 
 ## What is proven, and how
 
@@ -158,6 +160,7 @@ One machine (Windows 11 with WSL2, 7.7 GiB of memory, 8 CPUs), single samples. T
 | [0010](docs/adr/0010-policy-judges-updates-for-new-images-only.md) | The image policy judges updates, but only for new images |
 | [0011](docs/adr/0011-kyverno-outage-behaviour.md) | What the guardrail does while Kyverno is down |
 | [0012](docs/adr/0012-active-tenant-isolation-checker.md) | An active tenant isolation checker that runs on any cluster (proposed) |
+| [0013](docs/adr/0013-rename-to-bulkhead.md) | Rename the project to Bulkhead |
 
 ## Roadmap
 
