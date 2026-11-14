@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help setup lint secrets hooks-update validate test-contract chart-test test-isolation cluster-up cluster-down tenants-apply kyverno-up policy-test test-policy-live
+.PHONY: help setup lint secrets hooks-update validate validate-exceptions test-contract test-exceptions chart-test test-isolation cluster-up cluster-down tenants-apply kyverno-up policy-test test-policy-live
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -23,6 +23,12 @@ validate: ## Validate the tenant files against the contract
 
 test-contract: ## Run the contract tests (valid files pass, invalid files fail)
 	bash tests/contract/run.sh
+
+validate-exceptions: ## Validate the policy exceptions in platform/exceptions
+	python3 scripts/validate_exceptions.py $(wildcard platform/exceptions/*.yaml)
+
+test-exceptions: ## Run the exception tests (valid files pass, invalid files fail)
+	bash tests/exceptions/run.sh
 
 cluster-up: ## Build the kind cluster and install Calico
 	bash scripts/cluster-up.sh

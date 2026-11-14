@@ -161,6 +161,7 @@ One machine (Windows 11 with WSL2, 7.7 GiB of memory, 8 CPUs), single samples. T
 | [0011](docs/adr/0011-kyverno-outage-behaviour.md) | What the guardrail does while Kyverno is down |
 | [0012](docs/adr/0012-active-tenant-isolation-checker.md) | An active tenant isolation checker that runs on any cluster (proposed) |
 | [0013](docs/adr/0013-rename-to-bulkhead.md) | Rename the project to Bulkhead |
+| [0014](docs/adr/0014-exception-files-checked-in-ci.md) | Exception files are checked in CI, with an owner, a reason and at most 90 days |
 
 ## Roadmap
 

@@ -51,6 +51,10 @@ jobs:
         run: make validate
       - name: Run contract tests
         run: make test-contract
+      - name: Validate policy exceptions
+        run: make validate-exceptions
+      - name: Run exception tests
+        run: make test-exceptions
 
   chart:
     name: chart

@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Policy exceptions are checked before they reach the cluster** (ADR 0014). Exception files live in `platform/exceptions/`. `make validate-exceptions` refuses a file without an absolute expiry date in the future and at most 90 days ahead, without an owner, a reason or a known tenant, with an unknown policy, or without a match condition. `make test-exceptions` runs 13 files that must fail for a stated reason and one that must pass, and both run in the `contract` CI job. `make kyverno-up` validates and applies the exceptions. The live policy suite checks that the example exception is accepted by the cluster (22 checks).
 - `docs/roadmap.md`: the plan to turn the project into an open source project that other engineers install, with what "done" means for each phase and what "solid" means for the whole project. It replaces the release plan in the problem statement.
 - ADR 0012 (proposed): an active tenant isolation checker that runs on any cluster, with a review of the tools that exist today and the checker's design features, including a research category for cross-namespace references through operators.
 - ADR 0004: Kyverno as the admission policy engine, compared with OPA Gatekeeper and the built-in ValidatingAdmissionPolicy.

@@ -1,0 +1,19 @@
+# expect: must match the file name
+apiVersion: policies.kyverno.io/v1
+kind: PolicyException
+metadata:
+  name: other-name
+  namespace: platform-exceptions
+  labels:
+    cleanup.kyverno.io/ttl: "2026-12-01T000000Z"
+  annotations:
+    bulkhead.io/owner: team-alpha@example.com
+    bulkhead.io/reason: "The vendor image only ships a latest tag until its 2.0 release."
+    bulkhead.io/tenant: alpha
+spec:
+  policyRefs:
+    - name: disallow-latest-image-tag
+      kind: ValidatingPolicy
+  matchConditions:
+    - name: only-the-vendor-pods
+      expression: "object.metadata.namespace == 'tenant-alpha' && object.metadata.labels['app'] == 'vendor-agent'"
