@@ -1,0 +1,56 @@
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: protect-platform-objects
+  annotations:
+    policies.kyverno.io/title: Protect the objects that the platform puts in a tenant namespace
+    policies.kyverno.io/description: >-
+      The network policies, quota, limit range and access rules in a tenant namespace carry
+      the label app.kubernetes.io/managed-by=bulkhead. Only the platform may change or delete
+      them. The tenant-admin role already forbids it, so this policy is a second layer for the
+      day that access rules are wrong (docs/adr/0015-protect-platform-objects.md).
+spec:
+  validationActions: [Deny]
+  # Only changes and deletions are judged, and a background scan of existing objects has no
+  # old object to judge. It would also need read rights on roles for the reports controller.
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    namespaceSelector:
+      matchLabels:
+        app.kubernetes.io/managed-by: bulkhead
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["UPDATE", "DELETE"]
+        resources: ["resourcequotas", "limitranges"]
+      - apiGroups: ["networking.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["UPDATE", "DELETE"]
+        resources: ["networkpolicies"]
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["UPDATE", "DELETE"]
+        resources: ["roles", "rolebindings"]
+  variables:
+    # The object as it was before the request, so that removing the label is caught too.
+    - name: managedByPlatform
+      expression: >-
+        oldObject.metadata.?labels.orValue({})[?'app.kubernetes.io/managed-by'].orValue('') == 'bulkhead'
+    # Who may change platform objects: the platform admins, and the controllers of
+    # Kubernetes itself, for example the namespace controller when a tenant is removed.
+    # kubeadm:cluster-admins is the admin group of kubeadm and kind clusters since
+    # Kubernetes 1.29. bulkhead:platform-admins is the group to bind on other clusters.
+    - name: platformIdentity
+      expression: >-
+        request.userInfo.groups.exists(g, g in ['system:masters', 'kubeadm:cluster-admins',
+        'bulkhead:platform-admins', 'system:serviceaccounts:kube-system']) ||
+        request.userInfo.username in ['system:kube-controller-manager']
+  validations:
+    - expression: "!variables.managedByPlatform || variables.platformIdentity"
+      messageExpression: >-
+        request.kind.kind + ' ' + oldObject.metadata.name + ' in ' + request.namespace +
+        ' is managed by the platform and keeps the tenant isolated, so it cannot be changed or deleted from here.
+        Fix: change the tenant file in a pull request, or ask the platform team.
+        Runbook: https://github.com/OpeyemiAdeniji/bulkhead/blob/main/docs/runbooks/policy-protect-platform-objects.md'

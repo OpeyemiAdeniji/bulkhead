@@ -137,7 +137,7 @@ One machine (Windows 11 with WSL2, 7.7 GiB of memory, 8 CPUs), single samples. T
 - The network checks show that traffic between two tenants is blocked. They do not show whether the ingress rules or the egress rules did it, because the policies deny both directions at once. Traffic through a Service or through the host network is not covered.
 - The Pod Security level is set on every namespace, but no check yet tries to run a privileged pod. The baseline denies egress to the internet, and no check covers that either.
 - Removing a tenant file does not remove the tenant until Argo CD arrives in v0.3. For now, a tenant is removed by deleting its namespace.
-- Not built yet: the pull request preview comment, admission policies with friendly messages, time-limited exceptions, the Trivy gate, cost estimates and the platform SLO.
+- Not built yet: the pull request preview comment, the Trivy gate, cost estimates and the platform SLO. Admission policies with friendly messages and expiring exceptions are built (v0.2, see the changelog), and the README section for them follows with the v0.2 release.
 - The size tiers have not been compared with real workloads.
 - Calico is installed with its stock custom resources, which include the Goldmane and Whisker flow components. Their memory use has not been separated from the rest.
 - Everything was tested with kind v0.33.0, Kubernetes v1.37.0 and Calico v3.33.0 only. Whether Argo CD can use the tenant file as a values file is untested.
@@ -162,6 +162,7 @@ One machine (Windows 11 with WSL2, 7.7 GiB of memory, 8 CPUs), single samples. T
 | [0012](docs/adr/0012-active-tenant-isolation-checker.md) | An active tenant isolation checker that runs on any cluster (proposed) |
 | [0013](docs/adr/0013-rename-to-bulkhead.md) | Rename the project to Bulkhead |
 | [0014](docs/adr/0014-exception-files-checked-in-ci.md) | Exception files are checked in CI, with an owner, a reason and at most 90 days |
+| [0015](docs/adr/0015-protect-platform-objects.md) | A policy protects the platform's objects in tenant namespaces, as a second layer |
 
 ## Roadmap
 
