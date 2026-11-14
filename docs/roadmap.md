@@ -48,7 +48,11 @@ Done when: a person who has never seen the project installs it on a cluster of t
 - Go module, CLI and kubectl plugin, built with `client-go`.
 - The check catalogue, ported from the 36 checks of the isolation suite and extended with Pod Security (a privileged pod is refused) and egress to the internet. Every check has an ID, a pair, a statement of what it proves and does not prove, and a fix.
 - Safety: labelled test objects, clean-up on exit and on interruption, a read-only mode, a dry-run that lists what would be created, and a timeout for every check.
-- Reports: table, JSON with a published schema, JUnit and HTML. Exit codes that continuous integration can use.
+- Reports: table, JSON with a published schema, JUnit, SARIF and HTML (with a source by destination matrix for the network checks), and optionally `PolicyReport` objects in the cluster. Exit codes that continuous integration can use.
+- Every verdict names the layer that decided it, runs as the tenant's own identity (confirmed with a `SelfSubjectReview`), and maps to the archived multi-tenancy benchmark IDs and the CIS benchmark where they overlap.
+- A file in which teams declare their own expected flows, and an option to probe from inside a running workload with an ephemeral container.
+- A research category, off by default: cross-namespace references through installed operators (ADR 0012).
+- The ideas above come from other projects. ADR 0012 lists each one and its source.
 - Profiles: plain namespaces first, then Capsule and vCluster, each tested against that tool in continuous integration.
 - Distribution: release binaries for Linux, macOS and Windows on amd64 and arm64, a signed container image, a krew plugin and a GitHub Action.
 - Unit tests for every check, and an end-to-end test that breaks each protection on purpose and expects exactly the matching checks to fail (the break test of the isolation suite, made automatic).
@@ -70,7 +74,7 @@ Done when: the definition of done in the problem statement holds without manual 
 
 A public site where people learn what the project is, see the evidence and try it.
 
-- Built with Docusaurus, hosted on GitHub Pages, deployed by a workflow from `main`. Documentation versioned per release.
+- Built with Astro and its Starlight documentation theme (a custom, animated landing page and the documentation in one static site), hosted on GitHub Pages, deployed by a workflow from `main`. Documentation versioned per release. The site starts early and grows with each phase. Anything not built yet is labelled with the version that brings it.
 - **Landing page:** the problem, what the project does, how it works (a diagram from pull request to ready tenant), and a "Proof" section that shows the results of the latest runs on `main` (which checks passed, on which versions).
 - **Try it:** "local in five minutes with kind" and "run the checker on your cluster".
 - **Tenant file builder:** a form that writes a tenant file, validates it with the same JSON Schema in the browser, and opens a pull request on GitHub. No backend, no login.
