@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The README lists every ADR, and its roadmap follows `docs/roadmap.md`.
 
 ### Fixed
+- **A small tenant now fits its 10 pods when they set no resources.** The default container limit was 500m CPU, half of the tier's CPU limit, so only two such pods fitted. The defaults are now requests of 50m CPU and 50Mi and limits of 100m CPU and 100Mi, one tenth of the small tier. The isolation suite has two new checks (38 in total): 10 pods without resources fit, and an eleventh is rejected by the pod count.
 - `make kyverno-up` waits until the Kyverno service has a ready address and retries the policy apply, because the webhook refused the connection in the first `policy-live` run on `main`.
 - The architecture diagram in the README did not render on GitHub (an error in the label of a dotted arrow). It is removed for now and replaced by a numbered list, until a hand-drawn diagram is added. The v0.1.0 tag still contains the old diagram.
 

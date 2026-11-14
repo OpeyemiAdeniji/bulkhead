@@ -47,7 +47,7 @@ Build the checker (option 3), in Go, as a CLI that is also usable as a kubectl p
 - **Tenancy profiles.** The first profile is a plain namespace per tenant. Profiles for Capsule and vCluster follow, each tested against that tool in continuous integration.
 - **Reports:** a terminal table, JSON, JUnit for continuous integration, and an HTML report that can be kept as evidence. The exit code says whether every selected check passed.
 - **Go,** because it is the language of the Kubernetes ecosystem: `client-go` is the reference client, a single static binary is easy to install on every platform, and most contributors in this field read it.
-- The bash suite stays until the checker covers all 36 checks. Then the platform's own continuous integration runs the checker instead.
+- The bash suite stays until the checker covers all 38 checks. Then the platform's own continuous integration runs the checker instead.
 
 ## Design features
 

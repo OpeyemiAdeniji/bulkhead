@@ -25,6 +25,10 @@ sizes:
     persistentvolumeclaims: 8
 
 # Defaults for containers that do not set their own requests and limits.
+# One tenth of the small tier, so that the 10 pods that the small tier allows also fit
+# when none of them sets resources (10 x 50m = 500m requests, 10 x 100m = 1 CPU limits).
+# Medium and large scale CPU, memory and pods together, so the same holds for them.
+# Before 2026-11-14 the default limit was 500m CPU, and only two such pods fitted.
 containerDefaults:
-  request: {cpu: 100m, memory: 128Mi}
-  limit: {cpu: 500m, memory: 256Mi}
+  request: {cpu: 50m, memory: 50Mi}
+  limit: {cpu: 100m, memory: 100Mi}
