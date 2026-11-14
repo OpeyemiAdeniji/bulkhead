@@ -49,25 +49,22 @@ Build the checker (option 3), in Go, as a CLI that is also usable as a kubectl p
 - **Go,** because it is the language of the Kubernetes ecosystem: `client-go` is the reference client, a single static binary is easy to install on every platform, and most contributors in this field read it.
 - The bash suite stays until the checker covers all 36 checks. Then the platform's own continuous integration runs the checker instead.
 
-## Ideas adopted from other projects
+## Design features
 
-Ideas, not code. Each one is credited in the documentation of the check or feature that uses it.
+| Feature | What the checker does |
+|---|---|
+| Levels, categories and stable IDs | The catalogue has levels (basic, hardened) and categories. Each check also lists the ID it covers in the archived Kubernetes multi-tenancy benchmarks, for users who know them. |
+| The deciding layer | A blocked request reports whether access rules, admission, a network policy, a quota or a limit range stopped it. A pass that came from the wrong layer is reported. |
+| The tenant's own identity | Requests impersonate the tenant's group or service account, and a `SelfSubjectReview` confirms the identity before any check runs. |
+| Stated limits | Every check states what a pass does not prove, as the ADRs of this project already do. |
+| Team-declared expectations | Besides the built-in checks, a file can list extra expectations ("alpha may reach the shared database, nothing else may"). |
+| Probes from inside real workloads | An option runs network probes from an ephemeral container in a running pod, so the probe has the pod's real labels and policies. |
+| Network matrix | The HTML report shows a source by destination grid for every network check, with the expected and the observed result. |
+| Standard formats | Checks map to the CIS Kubernetes Benchmark and the NSA and CISA hardening guidance where they overlap. Results are available as SARIF for GitHub code scanning, and as `PolicyReport` objects (`wgpolicyk8s.io`) for dashboards that already read them. |
+| Pull request summary | The GitHub Action posts a short comment with the failed checks and their fixes. |
+| Cross-namespace references through operators | A research category, off by default: for operators installed in the cluster, the tenant creates its own namespaced custom resources that point at another tenant's objects, and the checker looks for whether the operator follows the reference. |
 
-| Idea | From | How the checker uses it |
-|---|---|---|
-| Profile levels and check categories, with stable IDs | Kubernetes multi-tenancy benchmarks (archived) | The catalogue has levels (basic, hardened) and categories. A table maps each check to the benchmark ID that it covers, so a user who knows the benchmark can compare. |
-| Every verdict names the layer that decided it | `kubectl-audit-tenant` | A blocked request reports whether access rules, admission, a network policy, a quota or a limit range stopped it. A pass that came from the wrong layer is reported. |
-| Run as the tenant's own identity, and confirm that identity first | `kubectl-audit-tenant` | Requests use impersonation of the tenant's group or service account, and a `SelfSubjectReview` confirms who the checker is before any check runs. |
-| "What a pass does not prove", per check | `kubectl-audit-tenant` | Every check in the catalogue states its limits, as the ADRs of this project already do. |
-| Teams declare their own expected flows in a file | NetAssert | Besides the built-in checks, a file can list extra expectations ("alpha may reach the shared database, nothing else may"). |
-| Test from inside a running workload | NetAssert (ephemeral containers) | An option runs network probes from an ephemeral container in a real pod, so the probe has the pod's real labels and policies, instead of a new test pod. |
-| Network results as a matrix | Cyclonus | The HTML report shows a source by destination grid for every network check, with the expected and the observed result. |
-| Mapping to known control frameworks, and SARIF output | Kubescape, kube-bench | Checks map to the CIS Kubernetes Benchmark and the NSA and CISA hardening guidance where they overlap. SARIF output shows failures in GitHub code scanning. |
-| Results as `PolicyReport` objects | Kubernetes Policy working group (`wgpolicyk8s.io`), used by Kyverno and Policy Reporter | An option writes results as `PolicyReport` objects, so dashboards that already read them show isolation results without new work. |
-| A pull request summary in continuous integration | Argus (code scanner) | The GitHub Action posts a short summary comment with the failed checks and their fixes. |
-| Cross-namespace references through operators | NDSS 2026 paper "Breaking the Bulkhead" (Chen et al.) | A research category, off by default: for operators installed in the cluster, the tenant creates its own namespaced custom resources that point at another tenant's objects, and the checker looks for whether the operator follows the reference. |
-
-The last row matters for the problem statement. The paper analysed 2,268 operators on GitHub, found more than 14 percent potentially vulnerable to cross-namespace references that break namespace isolation, and reports 7 CVEs. A namespace with perfect access rules and network policies can still leak through an operator that acts on another namespace for the tenant. No tool listed above tests that on a live cluster. It is also the hardest category to do safely, which is why it is a research item and opt-in.
+The last row matters for the problem statement. The NDSS 2026 paper "Breaking the Bulkhead" (Chen et al.) analysed 2,268 operators on GitHub, found more than 14 percent potentially vulnerable to cross-namespace references that break namespace isolation, and reports 7 CVEs. A namespace with perfect access rules and network policies can still leak through an operator that acts on another namespace for the tenant. No tool listed above tests that on a live cluster. It is also the hardest category to do safely, which is why it is a research item and opt-in.
 
 ## Consequences
 
