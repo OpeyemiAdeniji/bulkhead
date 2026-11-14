@@ -18,9 +18,9 @@ CONTEXT="${KUBE_CONTEXT:-kind-bulkhead}"
 A="tenant-alpha"
 POLICY="disallow-latest-image-tag"
 RUNBOOK="docs/runbooks/policy-disallow-latest-tag.md"
-EXPECTED=21
+EXPECTED=22
 if [ "${WITH_EXPIRY:-0}" = "1" ]; then
-  EXPECTED=25
+  EXPECTED=26
 fi
 passes=0
 failures=0
@@ -251,6 +251,10 @@ expect_blocked "a tenant admin cannot create an exception in its own namespace" 
 expect_blocked "a tenant admin cannot create a policy" "forbidden" as_alpha create -f "platform/policies/$POLICY.yaml" --dry-run=server
 expect_blocked "a tenant admin cannot delete the policy" "forbidden" as_alpha delete validatingpolicies.policies.kyverno.io "$POLICY" --dry-run=server
 expect_ok "the platform admin can create the same exception (dry run), so the refusals above are about the identity" k create -f "$work/exception-platform.yaml" --dry-run=server
+# The example that passes make test-exceptions must also be accepted by the cluster, so the
+# offline check and the real PolicyException schema agree. Its date is moved into the future.
+sed "s/cleanup.kyverno.io\/ttl: .*/cleanup.kyverno.io\/ttl: \"$far\"/" tests/exceptions/valid/vendor-agent-latest.yaml > "$work/example-exception.yaml"
+expect_ok "the example exception that passes the offline check is accepted by the cluster (dry run)" k create -f "$work/example-exception.yaml" --dry-run=server
 
 echo "== a workload that already runs latest is not blocked by unrelated updates"
 G="policy-live-old-$$"

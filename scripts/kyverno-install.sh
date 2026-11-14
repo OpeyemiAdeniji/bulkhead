@@ -64,5 +64,14 @@ for p in $(kubectl --context "$CONTEXT" get validatingpolicies.policies.kyverno.
   kubectl --context "$CONTEXT" wait --for=jsonpath='{.status.conditionStatus.ready}'=true "$p" --timeout=120s
 done
 
+exceptions=(platform/exceptions/*.yaml)
+if [ -e "${exceptions[0]}" ]; then
+  echo "==> validating and applying ${#exceptions[@]} policy exception(s)"
+  python3 scripts/validate_exceptions.py "${exceptions[@]}"
+  kubectl --context "$CONTEXT" apply -f "${exceptions[@]}"
+else
+  echo "==> no policy exceptions in platform/exceptions"
+fi
+
 echo "kyverno ready: $((SECONDS - start)) s"
 kubectl --context "$CONTEXT" -n kyverno get pods
