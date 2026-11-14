@@ -2,7 +2,7 @@
 
 ## Summary
 
-k8s-tenant-platform is a local reference implementation of a self-service, multi-tenant Kubernetes platform. A team requests its own space on a shared cluster by adding one tenant file in a pull request. After review and merge, the platform creates a namespace with resource quotas, role-based access control, default-deny network policies, admission policies and a continuous integration template, without a ticket and without manual work by the platform team.
+Bulkhead (named k8s-tenant-platform until 2026-11-14) is a local reference implementation of a self-service, multi-tenant Kubernetes platform. A team requests its own space on a shared cluster by adding one tenant file in a pull request. After review and merge, the platform creates a namespace with resource quotas, role-based access control, default-deny network policies, admission policies and a continuous integration template, without a ticket and without manual work by the platform team.
 
 It runs first on kind on a single development machine and is planned to move to Amazon EKS in v0.4. It is a portfolio project that demonstrates platform engineering patterns. It is not a production platform, and it has not been used by real tenant teams.
 

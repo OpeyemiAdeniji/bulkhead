@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SECURITY.md`, and Dependabot for GitHub Actions and Python dependencies.
 
 ### Changed
+- **The project is renamed to Bulkhead** (ADR 0013). The repository is `OpeyemiAdeniji/bulkhead`, and GitHub redirects the old URLs. The label on platform-managed objects, which the policies select on, is now `app.kubernetes.io/managed-by: bulkhead`, so a cluster set up before the rename must apply its tenants again. The local kind cluster is named `bulkhead` (context `kind-bulkhead`).
+- The roadmap adds AWS Emulator: for testing the EKS infrastructure code in continuous integration, and as an optional step in the tenant CI template. It is never used as evidence for an isolation claim.
 - GitHub Actions are pinned to commit SHAs, and `actions/checkout` and `actions/setup-python` move to their current major versions (the old ones ran on the deprecated Node 20).
 - The `chart` CI job installs Helm through `scripts/install-tools.sh`, so the Helm version is pinned in one place. The `lint` job uses Python 3.14, like the `contract` job.
 - The pre-commit hooks move to their current versions.
@@ -68,5 +70,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `make setup` and `CONTRIBUTING.md` now use pre-commit installed with pipx, not a virtualenv.
 - The YAML hook skips Helm templates, which are not valid YAML until they are rendered.
 
-[Unreleased]: https://github.com/OpeyemiAdeniji/k8s-tenant-platform/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/OpeyemiAdeniji/k8s-tenant-platform/releases/tag/v0.1.0
+[Unreleased]: https://github.com/OpeyemiAdeniji/bulkhead/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/OpeyemiAdeniji/bulkhead/releases/tag/v0.1.0

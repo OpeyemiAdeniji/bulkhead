@@ -5,7 +5,7 @@ tenant-{{ required "name is required (pass the tenant file with -f)" .Values.nam
 
 {{/* Labels on every object. Values are quoted because they come from the tenant file. */}}
 {{- define "tenant.labels" -}}
-app.kubernetes.io/managed-by: k8s-tenant-platform
+app.kubernetes.io/managed-by: bulkhead
 tenant: {{ .Values.name | quote }}
 team: {{ .Values.owner.team | quote }}
 cost-centre: {{ .Values.costCentre | quote }}

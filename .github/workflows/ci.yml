@@ -83,11 +83,11 @@ jobs:
       - name: Show the cluster state after a failure
         if: failure()
         run: |
-          kubectl --context kind-tenant-platform get nodes -o wide || true
-          kubectl --context kind-tenant-platform get pods -A -o wide || true
-          kubectl --context kind-tenant-platform get events -A --sort-by=.lastTimestamp | tail -50 || true
+          kubectl --context kind-bulkhead get nodes -o wide || true
+          kubectl --context kind-bulkhead get pods -A -o wide || true
+          kubectl --context kind-bulkhead get events -A --sort-by=.lastTimestamp | tail -50 || true
           echo "--- kernel log (shared by all nodes, because they are containers on one host)"
-          docker exec tenant-platform-control-plane dmesg 2>&1 | grep -iE 'oom|out of memory|killed process|not permitted|denied' | tail -20 || true
+          docker exec bulkhead-control-plane dmesg 2>&1 | grep -iE 'oom|out of memory|killed process|not permitted|denied' | tail -20 || true
 
   policy:
     name: policy
@@ -122,8 +122,8 @@ jobs:
       - name: Show the cluster state after a failure
         if: failure()
         run: |
-          kubectl --context kind-tenant-platform get pods -A -o wide || true
-          kubectl --context kind-tenant-platform get events -A --sort-by=.lastTimestamp | tail -50 || true
+          kubectl --context kind-bulkhead get pods -A -o wide || true
+          kubectl --context kind-bulkhead get events -A --sort-by=.lastTimestamp | tail -50 || true
 
   # Keep the job names stable: the ruleset matches required checks by name.
   # Actions are pinned to commit SHAs. Dependabot proposes updates (.github/dependabot.yml).

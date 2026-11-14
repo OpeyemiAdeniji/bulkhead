@@ -11,7 +11,7 @@ set -uo pipefail
 
 cd "$(dirname "$0")/../.." || exit 1
 
-CONTEXT="${KUBE_CONTEXT:-kind-tenant-platform}"
+CONTEXT="${KUBE_CONTEXT:-kind-bulkhead}"
 A="tenant-alpha"
 B="tenant-bravo"
 IMAGE="busybox:1.36"

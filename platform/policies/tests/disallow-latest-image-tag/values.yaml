@@ -8,4 +8,4 @@ metadata:
 namespaceSelector:
   - name: tenant-alpha
     labels:
-      app.kubernetes.io/managed-by: k8s-tenant-platform
+      app.kubernetes.io/managed-by: bulkhead
