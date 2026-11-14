@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `docs/roadmap.md`: the plan to turn the project into an open source project that other engineers install, with what "done" means for each phase and what "solid" means for the whole project. It replaces the release plan in the problem statement.
+- ADR 0012 (proposed): an active tenant isolation checker that runs on any cluster, with a review of the tools that exist today.
 - ADR 0004: Kyverno as the admission policy engine, compared with OPA Gatekeeper and the built-in ValidatingAdmissionPolicy.
 - Supported platforms section in the README, with the parts that are tied to Linux on x86-64, and an issue for macOS and ARM.
 - A third cluster start time in the measurements and in the README.
@@ -30,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions are pinned to commit SHAs, and `actions/checkout` and `actions/setup-python` move to their current major versions (the old ones ran on the deprecated Node 20).
 - The `chart` CI job installs Helm through `scripts/install-tools.sh`, so the Helm version is pinned in one place. The `lint` job uses Python 3.14, like the `contract` job.
 - The pre-commit hooks move to their current versions.
+- The README lists every ADR, and its roadmap follows `docs/roadmap.md`.
 
 ### Fixed
 - `make kyverno-up` waits until the Kyverno service has a ready address and retries the policy apply, because the webhook refused the connection in the first `policy-live` run on `main`.

@@ -149,20 +149,29 @@ One machine (Windows 11 with WSL2, 7.7 GiB of memory, 8 CPUs), single samples. T
 | [0001](docs/adr/0001-namespace-per-tenant.md) | One namespace per tenant on a shared cluster |
 | [0002](docs/adr/0002-pull-request-not-web-portal.md) | A pull request as the interface, and no web portal |
 | [0003](docs/adr/0003-network-plugin-calico.md) | Calico as the network plugin, with a measured test of the default plugin |
+| [0004](docs/adr/0004-kyverno-admission-policy-engine.md) | Kyverno as the admission policy engine |
 | [0005](docs/adr/0005-tenant-contract-yaml-json-schema.md) | The tenant contract as plain YAML with a JSON Schema |
 | [0006](docs/adr/0006-helm-chart-renders-tenant-file.md) | A Helm chart renders the tenant file |
 | [0007](docs/adr/0007-custom-tenant-admin-role.md) | A custom role for tenant admins |
-
-ADR 0004 (the admission policy engine) is reserved for v0.2, so the numbering has a gap on purpose.
+| [0008](docs/adr/0008-kyverno-cel-policies-and-expiring-exceptions.md) | CEL-based Kyverno policies, and exceptions that expire through a TTL label |
+| [0009](docs/adr/0009-scope-policies-by-namespace-label.md) | Scope policies to tenant namespaces by label |
+| [0010](docs/adr/0010-policy-judges-updates-for-new-images-only.md) | The image policy judges updates, but only for new images |
+| [0011](docs/adr/0011-kyverno-outage-behaviour.md) | What the guardrail does while Kyverno is down |
+| [0012](docs/adr/0012-active-tenant-isolation-checker.md) | An active tenant isolation checker that runs on any cluster (proposed) |
 
 ## Roadmap
+
+The project is becoming an open source project for other engineers to install and use. The full plan, with what "done" means for each phase, is in [docs/roadmap.md](docs/roadmap.md).
 
 | Version | Scope |
 |---|---|
 | v0.1 | Tenant contract, namespace, quota, access, network policies, isolation tests. Released. |
-| v0.2 | Kyverno guardrails with tests, friendly rejection messages, expiring exceptions, Trivy gate |
-| v0.3 | Argo CD ApplicationSet, pull request preview, capacity and cost report, dashboard, platform SLO, runbook, blog post |
-| v0.4 | Move to Amazon EKS |
+| v0.2 | Kyverno guardrails with tests, friendly rejection messages, expiring exceptions, a policy that protects platform objects |
+| v0.3 | Installable by others: configurable chart, signed releases on `ghcr.io`, tests on three Kubernetes versions |
+| v0.4 | The tenant isolation checker: a CLI that tests isolation on any cluster ([ADR 0012](docs/adr/0012-active-tenant-isolation-checker.md)) |
+| v0.5 | Self-service with Argo CD, pull request preview, platform SLO, cost showback, Trivy gate |
+| v1.0 | Public website, stable interfaces, launch |
+| later | Amazon EKS |
 
 ## Repository layout
 

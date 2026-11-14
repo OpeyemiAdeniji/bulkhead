@@ -80,7 +80,16 @@ These are deliberate exclusions. Each one is explained in an ADR.
 
 **Cost estimate:** calculated as quota multiplied by a documented unit price. It is an estimate for showback, not a bill, and the source of every unit price will be recorded.
 
-## Release plan
+## Change of direction (2026-11-14)
+
+The project is becoming an open source project that other engineers install and use, not only a portfolio project. Two things follow from that:
+
+- A second problem is added: **teams that share a cluster are told that they are isolated, and no maintained tool tests it end to end on their own cluster.** The isolation tests of this project become a separate checker that runs on any cluster ([ADR 0012](adr/0012-active-tenant-isolation-checker.md)). Problem 3 above ("unproven isolation") becomes a problem that the project solves for others, not only for its own tenants.
+- The platform must be installable on clusters other than the local kind cluster.
+
+The goals above still hold. The order in which they are built, and the new goals, are in the [roadmap](roadmap.md), which replaces the release plan below.
+
+## Release plan (until v0.1, replaced by the roadmap)
 
 | Version | Scope |
 |---|---|
