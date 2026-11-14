@@ -29,10 +29,19 @@ kind create cluster --name "$CLUSTER_NAME" --config platform/kind/kind-config.ya
 after_create=$SECONDS
 
 echo "==> installing Calico $CALICO_VERSION"
-k create -f "${CALICO_BASE}/v3_projectcalico_org.yaml"
-k create -f "${CALICO_BASE}/tigera-operator.yaml"
+# Calico publishes no checksums for these manifests, so the hashes in
+# platform/calico/manifests.sha256 were recorded on first download (2026-11-14).
+# A changed file at the same URL stops the build here instead of being applied.
+calico_dir="$(mktemp -d)"
+trap 'rm -rf "$calico_dir"' EXIT
+for f in v3_projectcalico_org.yaml tigera-operator.yaml custom-resources.yaml; do
+  curl -fsSL -o "$calico_dir/$f" "${CALICO_BASE}/$f"
+done
+(cd "$calico_dir" && sha256sum -c -) < platform/calico/manifests.sha256
+k create -f "$calico_dir/v3_projectcalico_org.yaml"
+k create -f "$calico_dir/tigera-operator.yaml"
 k wait --for=condition=Established crd/installations.operator.tigera.io --timeout=120s
-k create -f "${CALICO_BASE}/custom-resources.yaml"
+k create -f "$calico_dir/custom-resources.yaml"
 
 echo "==> waiting for nodes and DNS"
 k wait --for=condition=Ready node --all --timeout=600s

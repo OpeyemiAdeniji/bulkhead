@@ -21,8 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `make test-policy-live` (`tests/policy-live/run.sh`): 21 live checks as a tenant admin on the local cluster, and a `policy-live` CI job that is not a required check yet.
 - ADR 0010: the policy judges updates, but only for images that the old object did not have.
 - ADR 0011: what the guardrail does while Kyverno is stopped, crashes or restarts, and the chosen route (accept and document). ADR 0009 is amended.
+- `make chart-test` checks every rendered object against the Kubernetes API schema with kubeconform, in strict mode. kubeconform is pinned in `scripts/install-tools.sh` with its checksum.
+- shellcheck runs on every script as a pre-commit hook, and so in the `lint` CI job.
+- `make cluster-up` checks the Calico manifests against the hashes in `platform/calico/manifests.sha256` before it applies them.
+- `SECURITY.md`, and Dependabot for GitHub Actions and Python dependencies.
+
+### Changed
+- GitHub Actions are pinned to commit SHAs, and `actions/checkout` and `actions/setup-python` move to their current major versions (the old ones ran on the deprecated Node 20).
+- The `chart` CI job installs Helm through `scripts/install-tools.sh`, so the Helm version is pinned in one place. The `lint` job uses Python 3.14, like the `contract` job.
+- The pre-commit hooks move to their current versions.
 
 ### Fixed
+- `make kyverno-up` waits until the Kyverno service has a ready address and retries the policy apply, because the webhook refused the connection in the first `policy-live` run on `main`.
 - The architecture diagram in the README did not render on GitHub (an error in the label of a dotted arrow). It is removed for now and replaced by a numbered list, until a hand-drawn diagram is added. The v0.1.0 tag still contains the old diagram.
 
 ## [0.1.0] - 2026-10-26

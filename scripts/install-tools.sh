@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# Install pinned versions of kind, kubectl, helm and the kyverno CLI. Every download is
-# checked against its published checksum before it is installed.
+# Install pinned versions of kind, kubectl, helm, kubeconform and the kyverno CLI. Every
+# download is checked against its published checksum before it is installed. This file is
+# the one place where these versions are pinned, and continuous integration uses it too.
 # Usage: scripts/install-tools.sh [INSTALL_DIR [TOOL...]]
 #   INSTALL_DIR defaults to $HOME/.local/bin.
-#   TOOL is kind, kubectl, helm or kyverno. With no TOOL, all four are installed.
+#   TOOL is kind, kubectl, helm, kubeconform or kyverno. With no TOOL, all are installed.
 # The kyverno version is read from platform/kyverno/app-version.
 set -euo pipefail
 
 KIND_VERSION="v0.33.0"
 KUBECTL_VERSION="v1.37.1"
 HELM_VERSION="v4.3.1"
+KUBECONFORM_VERSION="v0.8.0"
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 KYVERNO_VERSION="$(tr -d '[:space:]' < "$root/platform/kyverno/app-version")"
 
 dir="${1:-$HOME/.local/bin}"
 shift || true
-all_tools=(kind kubectl helm kyverno)
+all_tools=(kind kubectl helm kubeconform kyverno)
 selected=("$@")
 if [ "${#selected[@]}" -eq 0 ]; then
   selected=("${all_tools[@]}")
@@ -58,6 +60,17 @@ install_helm() {
   install -m 0755 linux-amd64/helm "$dir/helm"
 }
 
+install_kubeconform() {
+  echo "==> kubeconform $KUBECONFORM_VERSION"
+  local base="https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}"
+  local archive="kubeconform-linux-amd64.tar.gz"
+  curl -fsSLO "${base}/${archive}"
+  curl -fsSLO "${base}/CHECKSUMS"
+  grep " ${archive}\$" CHECKSUMS | sha256sum -c -
+  tar -xzf "$archive" kubeconform
+  install -m 0755 kubeconform "$dir/kubeconform"
+}
+
 install_kyverno() {
   echo "==> kyverno $KYVERNO_VERSION"
   local base="https://github.com/kyverno/kyverno/releases/download/${KYVERNO_VERSION}"
@@ -79,6 +92,7 @@ for t in "${selected[@]}"; do
     kind) "$dir/kind" version ;;
     kubectl) "$dir/kubectl" version --client ;;
     helm) "$dir/helm" version ;;
+    kubeconform) "$dir/kubeconform" -v ;;
     kyverno) "$dir/kyverno" version ;;
   esac
 done
