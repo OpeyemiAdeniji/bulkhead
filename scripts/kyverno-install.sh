@@ -51,10 +51,17 @@ done
 # (seen once in CI). So the apply is retried, with a limit.
 applied=0
 for attempt in $(seq 1 24); do
-  if out="$(kubectl --context "$CONTEXT" apply -f platform/policies/*.yaml 2>&1)"; then
+  # -f takes the folder, not a glob: with more than one policy, "-f *.yaml" passes the second
+  # file as a stray argument. The folder is not read recursively, so tests/ is skipped.
+  if out="$(kubectl --context "$CONTEXT" apply -f platform/policies/ 2>&1)"; then
     echo "$out"
     applied=1
     break
+  fi
+  # Only a webhook that does not answer yet is worth waiting for. Any other error is final.
+  if ! grep -qE 'connection refused|failed calling webhook|no endpoints available|context deadline exceeded' <<< "$out"; then
+    echo "$out" >&2
+    exit 1
   fi
   echo "policy apply failed (attempt $attempt of 24), retrying in 5 s: $(head -c 160 <<< "$out")"
   sleep 5

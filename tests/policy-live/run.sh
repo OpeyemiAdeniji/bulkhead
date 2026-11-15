@@ -18,9 +18,9 @@ CONTEXT="${KUBE_CONTEXT:-kind-bulkhead}"
 A="tenant-alpha"
 POLICY="disallow-latest-image-tag"
 RUNBOOK="docs/runbooks/policy-disallow-latest-tag.md"
-EXPECTED=22
+EXPECTED=29
 if [ "${WITH_EXPIRY:-0}" = "1" ]; then
-  EXPECTED=26
+  EXPECTED=33
 fi
 passes=0
 failures=0
@@ -184,6 +184,7 @@ cleanup() {
   k -n default delete pods -l suite=policy-live --ignore-not-found --wait=false > /dev/null 2>&1
   k delete namespaces -l suite=policy-live --ignore-not-found --wait=false > /dev/null 2>&1
   k -n platform-exceptions delete policyexceptions.policies.kyverno.io live-exception --ignore-not-found > /dev/null 2>&1
+  k -n "$A" delete rolebindings,networkpolicies -l suite=policy-live --ignore-not-found > /dev/null 2>&1
   rm -rf "$work"
 }
 trap cleanup EXIT
@@ -256,6 +257,42 @@ expect_ok "the platform admin can create the same exception (dry run), so the re
 sed "s/cleanup.kyverno.io\/ttl: .*/cleanup.kyverno.io\/ttl: \"$far\"/" tests/exceptions/valid/vendor-agent-latest.yaml > "$work/example-exception.yaml"
 expect_ok "the example exception that passes the offline check is accepted by the cluster (dry run)" k create -f "$work/example-exception.yaml" --dry-run=server
 
+echo "== platform objects cannot be changed, even with too many rights (real attempts)"
+# A role binding to the built-in admin role is a mistake that the tenant file cannot make, but a
+# person can. That role may delete network policies and change roles (ADR 0007), so it shows that
+# the policy, not the tenant-admin role, protects the platform objects. Changes to the tenant-admin
+# role are not tried: Kubernetes refuses them already, because that role holds rights that the admin
+# role does not (RBAC escalation prevention).
+PROTECT="protect-platform-objects"
+k -n "$A" create rolebinding policy-live-broken-admin --clusterrole=admin --group=policy-live-broken-admins > /dev/null
+k -n "$A" label rolebinding policy-live-broken-admin suite=policy-live > /dev/null
+as_broken() { k --as=tester --as-group=policy-live-broken-admins "$@"; }
+for _ in $(seq 1 20); do
+  as_broken auth can-i delete networkpolicies -n "$A" > /dev/null 2>&1 && break
+  sleep 1
+done
+expect_blocked "with the admin role, the default-deny policy cannot be deleted" "Policy $PROTECT failed" as_broken -n "$A" delete networkpolicy default-deny-all --dry-run=server
+expect_blocked "with the admin role, the platform label cannot be removed from it" "Policy $PROTECT failed" as_broken -n "$A" label networkpolicy default-deny-all app.kubernetes.io/managed-by- --dry-run=server
+expect_blocked "with the admin role, the tenant-admins role binding cannot be deleted" "Policy $PROTECT failed" as_broken -n "$A" delete rolebinding tenant-admins --dry-run=server
+expect_blocked "with the admin role, the default-deny policy cannot be loosened to allow all ingress" "Policy $PROTECT failed" as_broken -n "$A" patch networkpolicy default-deny-all --type=json -p '[{"op":"add","path":"/spec/ingress","value":[{}]}]' --dry-run=server
+own_policy() {
+  printf '%s\n' "apiVersion: networking.k8s.io/v1" "kind: NetworkPolicy" "metadata: {name: policy-live-own, labels: {suite: policy-live}}" "spec: {podSelector: {}, policyTypes: [Ingress]}" \
+    | as_broken -n "$A" create -f - && as_broken -n "$A" delete networkpolicy policy-live-own
+}
+expect_ok "with the admin role, a network policy without the platform label can be created and deleted" own_policy
+expect_ok "the platform admin can delete the default-deny policy (dry run), so the refusals above are about the identity" k -n "$A" delete networkpolicy default-deny-all --dry-run=server
+k -n "$A" delete rolebinding policy-live-broken-admin --ignore-not-found > /dev/null
+# Removing a tenant must still work: the namespace controller deletes the platform objects.
+O="policy-live-offboard-$$"
+offboard() {
+  k create namespace "$O" > /dev/null &&
+    k label namespace "$O" app.kubernetes.io/managed-by=bulkhead suite=policy-live > /dev/null &&
+    printf '%s\n' "apiVersion: networking.k8s.io/v1" "kind: NetworkPolicy" "metadata: {name: default-deny-all, labels: {app.kubernetes.io/managed-by: bulkhead}}" "spec: {podSelector: {}, policyTypes: [Ingress, Egress]}" \
+      | k -n "$O" create -f - > /dev/null &&
+    k delete namespace "$O" --wait=true --timeout=120s > /dev/null
+}
+expect_ok "a namespace with platform objects is removed completely (the namespace controller may delete them)" offboard
+
 echo "== a workload that already runs latest is not blocked by unrelated updates"
 G="policy-live-old-$$"
 k create namespace "$G" > /dev/null 2>&1
@@ -316,5 +353,5 @@ if [ "$failures" -gt 0 ]; then
   exit 1
 fi
 echo "all $passes live policy checks passed"
-echo "Limits: one tenant identity (alpha-admins) and one policy. The behaviour while Kyverno is"
+echo "Limits: one tenant identity (alpha-admins) and two policies. The behaviour while Kyverno is"
 echo "down, and StatefulSets, DaemonSets and Jobs, are not tested here."
