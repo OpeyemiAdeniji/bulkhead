@@ -39,7 +39,7 @@ Done when: v0.2.0 is released with a signed tag and release notes, and every v0.
 - **Packaging** (workflow done, ADR 0017; first run at the next tag): both charts published to `ghcr.io` as OCI artifacts by a release workflow, signed with cosign without a key, with build provenance, and the policies ship inside `bulkhead-platform`. A software bill of materials comes with the `bulkhead check` binary, because the charts have no dependencies. Still open: listing the charts on Artifact Hub.
 - **Releases:** releases are made from signed tags by a workflow, with generated release notes from the changelog. Semantic Versioning, and an upgrade note for every minor version.
 - **Compatibility** (done): continuous integration runs the isolation and live policy suites on the three newest Kubernetes minor versions that kind publishes (1.37, 1.36, 1.35), and with Cilium as well as Calico. The README lists the tested combinations.
-- **Quick start from a clean clone,** run in continuous integration, so that it cannot break silently.
+- **Quick start from a clean clone** (done), run in continuous integration as written in the README, so that it cannot break silently.
 - **Contributor setup:** a dev container with the pinned tools, which also answers part of issue #14 (macOS and ARM).
 
 Done when: a person who has never seen the project installs it on a cluster of their own with `helm install` and the documentation alone, and the result passes the isolation suite.

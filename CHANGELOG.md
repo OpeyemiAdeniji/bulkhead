@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The README quick start runs in CI as written.** `scripts/readme-quickstart.sh` takes the bash block under the Quick start heading and runs it line by line on a fresh runner (job `quickstart`). The block now starts with the clone and puts `~/.local/bin` on the `PATH`, so it works on a machine that has nothing set up.
 - **Tests on three Kubernetes versions and two network plugins.** `make cluster-up` takes `K8S_VERSION` (1.37.0, 1.36.4 or 1.35.8, node images pinned by digest in `examples/kind/node-images`) and `CNI` (`calico` or `cilium`, Cilium pinned in `examples/kind/cilium-version`). A new `compatibility` CI job runs the isolation and live policy suites on 1.36 with Calico, and on 1.35 and 1.37 with Cilium. Calico 3.33.0 does not install on Kubernetes 1.35 (its manifests create `MutatingAdmissionPolicy` objects of `admissionregistration.k8s.io/v1`), so `make cluster-up` refuses that combination with a clear message. Locally on Cilium 1.20.4: 41 of 41 isolation checks, 29 of 29 live policy checks, and with the network policies deleted exactly the eight network checks that must be blocked failed.
 
 ### Changed
