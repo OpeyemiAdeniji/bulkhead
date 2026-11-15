@@ -14,6 +14,29 @@ This guide installs Bulkhead on a cluster that you already run: Amazon EKS, Goog
 
 The decision behind this split is [ADR 0016](adr/0016-two-charts-configurable-per-cluster.md).
 
+## Where the charts come from
+
+From the first release after v0.2.0, both charts are published to the GitHub container registry, signed, with a record of how they were built ([ADR 0017](adr/0017-signed-chart-releases.md)). The commands below use the registry. From a clone of this repository, use `charts/bulkhead-platform` and `charts/bulkhead-tenant` instead.
+
+```bash
+VERSION=0.3.0   # the release you install
+REGISTRY=ghcr.io/opeyemiadeniji/charts
+```
+
+Before you install, check that a chart was built by this repository's release workflow and not changed since:
+
+```bash
+# The signature: made by the release workflow of this repository, for this tag
+cosign verify "$REGISTRY/bulkhead-platform:$VERSION" \
+  --certificate-identity "https://github.com/OpeyemiAdeniji/bulkhead/.github/workflows/release.yml@refs/tags/v$VERSION" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+# The build provenance: which commit and workflow produced it
+gh attestation verify "oci://$REGISTRY/bulkhead-platform:$VERSION" --owner OpeyemiAdeniji
+```
+
+Do the same for `bulkhead-tenant`. A chart that fails either check was not built by this repository.
+
 ## 1. Check that your cluster enforces network policies
 
 Bulkhead's network isolation uses the standard `NetworkPolicy` API. A cluster accepts these objects even when nothing enforces them, and then they do nothing. Check your network plugin first:
@@ -63,7 +86,7 @@ platformAdmins:
 | kubeadm and kind | The group `kubeadm:cluster-admins` (see `examples/kind/bulkhead-platform-values.yaml`). |
 
 ```bash
-helm upgrade --install bulkhead-platform charts/bulkhead-platform -f platform-values.yaml --wait
+helm upgrade --install bulkhead-platform "oci://$REGISTRY/bulkhead-platform" --version "$VERSION" -f platform-values.yaml --wait
 kubectl get validatingpolicies.policies.kyverno.io
 ```
 
@@ -87,7 +110,7 @@ dns:
 Then render each tenant file with it, and apply:
 
 ```bash
-helm template tenant-alpha charts/bulkhead-tenant -f cluster-values.yaml -f tenants/alpha.yaml | kubectl apply -f -
+helm template tenant-alpha "oci://$REGISTRY/bulkhead-tenant" --version "$VERSION" -f cluster-values.yaml -f tenants/alpha.yaml | kubectl apply -f -
 ```
 
 Or, from a clone of this repository: `TENANT_VALUES=cluster-values.yaml make tenants-apply`. A GitOps controller can do the same with one application per tenant file (planned with Argo CD in v0.5).

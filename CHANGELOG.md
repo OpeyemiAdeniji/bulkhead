@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `make tenants-apply` takes cluster-wide tenant values from `TENANT_VALUES`.
 
 ### Added
+- **Signed chart releases** (ADR 0017). A version tag runs `.github/workflows/release.yml`, which packages both charts, pushes them to `oci://ghcr.io/opeyemiadeniji/charts`, signs them with cosign without a key, attaches a build provenance attestation, verifies the signatures, and creates the GitHub release from the changelog. A tag with a suffix makes a pre-release. `scripts/package-charts.sh` and `scripts/release-notes.sh` do the packaging and the notes, and the `chart` CI job packages both charts on every pull request. `docs/install.md` shows how to install from the registry and how to verify a chart.
 - `docs/install.md`: installing Bulkhead on Amazon EKS, Google Kubernetes Engine, Azure Kubernetes Service and other clusters. Written from the providers' documentation and not yet run on them.
 
 ## [0.2.0] - 2026-11-15

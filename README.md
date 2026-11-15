@@ -93,7 +93,7 @@ Fix: pin the image to a version, for example busybox:1.36, or to a digest. Runbo
 
 ## Install on your own cluster
 
-Bulkhead is two Helm charts: `charts/bulkhead-platform`, installed once per cluster next to Kyverno, and `charts/bulkhead-tenant`, installed once per tenant file. Everything that differs between clusters is a value: who your platform admins are, where DNS runs, the namespace prefix and the Pod Security level ([ADR 0016](docs/adr/0016-two-charts-configurable-per-cluster.md)).
+Bulkhead is two Helm charts: `charts/bulkhead-platform`, installed once per cluster next to Kyverno, and `charts/bulkhead-tenant`, installed once per tenant file. Everything that differs between clusters is a value: who your platform admins are, where DNS runs, the namespace prefix and the Pod Security level ([ADR 0016](docs/adr/0016-two-charts-configurable-per-cluster.md)). From the next release on, both charts are published to `oci://ghcr.io/opeyemiadeniji/charts`, signed, with a record of how they were built ([ADR 0017](docs/adr/0017-signed-chart-releases.md)).
 
 [docs/install.md](docs/install.md) walks through it for Amazon EKS, Google Kubernetes Engine, Azure Kubernetes Service and other clusters, including the one thing Bulkhead cannot do for you: a network plugin that enforces network policies. The charts are tested on kind only so far, and a cloud run is planned in Phase 1 of the roadmap.
 
@@ -203,6 +203,7 @@ One machine (Windows 11 with WSL2, 7.7 GiB of memory, 8 CPUs) and GitHub's `ubun
 | [0014](docs/adr/0014-exception-files-checked-in-ci.md) | Exception files are checked in CI, with an owner, a reason and at most 90 days |
 | [0015](docs/adr/0015-protect-platform-objects.md) | A policy protects the platform's objects in tenant namespaces, as a second layer |
 | [0016](docs/adr/0016-two-charts-configurable-per-cluster.md) | Two Helm charts, configurable per cluster, with the kind demo as one example |
+| [0017](docs/adr/0017-signed-chart-releases.md) | Charts are released to ghcr.io by a workflow, signed without a key, with build provenance |
 
 ## Roadmap
 
