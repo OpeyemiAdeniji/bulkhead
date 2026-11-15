@@ -4,7 +4,7 @@ metadata:
   name: {{ include "tenant.namespace" . }}
   labels:
     {{- include "tenant.labels" . | nindent 4 }}
-    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce: {{ .Values.podSecurity.level }}
     pod-security.kubernetes.io/enforce-version: latest
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted

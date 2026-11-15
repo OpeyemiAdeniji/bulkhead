@@ -2,6 +2,8 @@ apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: protect-platform-objects
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
   annotations:
     policies.kyverno.io/title: Protect the objects that the platform puts in a tenant namespace
     policies.kyverno.io/description: >-
@@ -38,19 +40,17 @@ spec:
     - name: managedByPlatform
       expression: >-
         oldObject.metadata.?labels.orValue({})[?'app.kubernetes.io/managed-by'].orValue('') == 'bulkhead'
-    # Who may change platform objects: the platform admins, and the controllers of
-    # Kubernetes itself, for example the namespace controller when a tenant is removed.
-    # kubeadm:cluster-admins is the admin group of kubeadm and kind clusters since
-    # Kubernetes 1.29. bulkhead:platform-admins is the group to bind on other clusters.
+    # Who may change platform objects: the platform admins (values platformAdmins), and the
+    # controllers of Kubernetes itself, for example the namespace controller when a tenant is
+    # removed. The Kubernetes identities are always added and cannot be removed by a value.
     - name: platformIdentity
       expression: >-
-        request.userInfo.groups.exists(g, g in ['system:masters', 'kubeadm:cluster-admins',
-        'bulkhead:platform-admins', 'system:serviceaccounts:kube-system']) ||
-        request.userInfo.username in ['system:kube-controller-manager']
+        request.userInfo.groups.exists(g, g in {{ include "platform.celList" (concat .Values.platformAdmins.groups (list "system:serviceaccounts:kube-system")) }}) ||
+        request.userInfo.username in {{ include "platform.celList" (concat .Values.platformAdmins.users (list "system:kube-controller-manager")) }}
   validations:
     - expression: "!variables.managedByPlatform || variables.platformIdentity"
       messageExpression: >-
         request.kind.kind + ' ' + oldObject.metadata.name + ' in ' + request.namespace +
         ' is managed by the platform and keeps the tenant isolated, so it cannot be changed or deleted from here.
         Fix: change the tenant file in a pull request, or ask the platform team.
-        Runbook: https://github.com/OpeyemiAdeniji/bulkhead/blob/main/docs/runbooks/policy-protect-platform-objects.md'
+        Runbook: {{ .Values.runbookBaseURL }}/policy-protect-platform-objects.md'

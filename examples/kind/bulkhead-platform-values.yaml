@@ -1,0 +1,10 @@
+# Values of the platform chart for the local kind cluster.
+# kind and kubeadm put their admin user in the group kubeadm:cluster-admins (Kubernetes 1.29 and
+# newer), not in system:masters, so that group is a platform admin here. On other clusters, list
+# the group or users of your own platform admins (charts/bulkhead-platform/values.yaml).
+platformAdmins:
+  groups:
+    - system:masters
+    - kubeadm:cluster-admins
+    - bulkhead:platform-admins
+  users: []

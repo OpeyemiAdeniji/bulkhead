@@ -4,6 +4,8 @@
 # - Every rendered object must carry the cost label, so showback never has gaps.
 # - Every rendered object must match the Kubernetes API schema (kubeconform).
 # - An unknown size must make the chart fail with a clear message.
+# - The platform chart lints and renders, its objects match the API schemas, the kind values add
+#   the kind admin group, and the values schemas of both charts refuse wrong values.
 # Usage: scripts/chart-test.sh (or: make chart-test)
 set -euo pipefail
 
@@ -14,10 +16,10 @@ for tool in helm kubeconform; do
 done
 
 # The Kubernetes version whose API schema the objects are checked against.
-# Keep it equal to the node image in platform/kind/kind-config.yaml.
+# Keep it equal to the node image in examples/kind/kind-config.yaml.
 K8S_SCHEMA_VERSION="${K8S_SCHEMA_VERSION:-1.37.0}"
 
-chart="platform/charts/tenant"
+chart="charts/bulkhead-tenant"
 failures=0
 
 for file in tenants/*.yaml; do
@@ -63,6 +65,67 @@ else
   echo "FAIL  unknown size (it failed, but not with: unknown size)"
   failures=$((failures + 1))
 fi
+
+# expect_refused NAME TEXT COMMAND... : the command must fail, and its output must contain TEXT.
+expect_refused() {
+  local name="$1" text="$2" out
+  shift 2
+  if out="$("$@" 2>&1)"; then
+    echo "FAIL  $name (it rendered, but it must be refused)"
+    failures=$((failures + 1))
+  elif grep -qF -- "$text" <<< "$out"; then
+    echo "pass  $name"
+  else
+    echo "FAIL  $name (it failed, but not with: $text)"
+    echo "$out" | head -5
+    failures=$((failures + 1))
+  fi
+}
+
+expect_refused "a Pod Security level that is not restricted or baseline is refused" "podSecurity/level" \
+  helm template t "$chart" -f tenants/alpha.yaml --set podSecurity.level=privileged
+expect_refused "a DNS CIDR that is not a CIDR is refused" "extraCIDRs" \
+  helm template t "$chart" -f tenants/alpha.yaml --set 'dns.extraCIDRs[0]=not-a-cidr'
+if out="$(helm template t "$chart" -f tenants/alpha.yaml --set namespacePrefix=team- --set 'dns.extraCIDRs[0]=169.254.20.10/32' 2>&1)" &&
+  grep -q '^  name: team-alpha$' <<< "$out" && grep -q 'cidr: "169.254.20.10/32"' <<< "$out"; then
+  echo "pass  the namespace prefix and an extra DNS CIDR are applied"
+else
+  echo "FAIL  the namespace prefix or the extra DNS CIDR was not applied"
+  failures=$((failures + 1))
+fi
+
+echo "== the platform chart"
+platform="charts/bulkhead-platform"
+# Kyverno's policy kinds are not in the Kubernetes schemas. The CRDs catalog has them.
+crds='https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+if ! helm lint "$platform" > /dev/null; then
+  echo "FAIL  lint     $platform"
+  failures=$((failures + 1))
+elif ! rendered="$(helm template bulkhead-platform "$platform")"; then
+  echo "FAIL  render   $platform"
+  failures=$((failures + 1))
+elif out="$(kubeconform -strict -summary -kubernetes-version "$K8S_SCHEMA_VERSION" -schema-location default -schema-location "$crds" <<< "$rendered" 2>&1)"; then
+  echo "pass  schema   $platform ($(tail -1 <<< "$out"))"
+else
+  echo "FAIL  schema   $platform"
+  echo "$out"
+  failures=$((failures + 1))
+fi
+kind_policy="$(helm template bulkhead-platform "$platform" -f examples/kind/bulkhead-platform-values.yaml -s templates/protect-platform-objects.yaml)"
+default_policy="$(helm template bulkhead-platform "$platform" -s templates/protect-platform-objects.yaml)"
+if grep -qF "'kubeadm:cluster-admins'" <<< "$kind_policy" && ! grep -qF "kubeadm:cluster-admins" <<< "$default_policy" &&
+  grep -qF "'system:serviceaccounts:kube-system'" <<< "$default_policy" && grep -qF "'system:kube-controller-manager'" <<< "$default_policy"; then
+  echo "pass  the kind values add the kind admin group, and the Kubernetes identities are always allowed"
+else
+  echo "FAIL  the platform admin list is not rendered as expected"
+  failures=$((failures + 1))
+fi
+expect_refused "a platform chart without any platform admin is refused" "platformAdmins" \
+  helm template p "$platform" --set 'platformAdmins.groups=null' --set 'platformAdmins.users=null'
+expect_refused "a quote in a platform admin group is refused" "platformAdmins" \
+  helm template p "$platform" --set "platformAdmins.groups[0]=a'b"
+expect_refused "an unknown platform value is refused" "additional properties" \
+  helm template p "$platform" --set unknownValue=1
 
 if [ "$failures" -gt 0 ]; then
   echo "$failures chart test(s) failed"

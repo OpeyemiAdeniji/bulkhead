@@ -1,42 +1,42 @@
 #!/usr/bin/env bash
-# Install Kyverno into the local cluster with Helm, at the pinned chart version.
-# Usage: scripts/kyverno-install.sh (or: make kyverno-up)
+# Install Kyverno into the local kind cluster at the pinned chart version, then the
+# bulkhead-platform chart with the kind values, then the policy exceptions in exceptions/.
+# On other clusters, install Kyverno your own way and only the bulkhead-platform chart
+# (docs/install.md). Usage: scripts/kyverno-install.sh (or: make kyverno-up)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 CONTEXT="kind-bulkhead"
-VERSION="$(tr -d '[:space:]' < platform/kyverno/chart-version)"
+VERSION="$(tr -d '[:space:]' < examples/kind/kyverno/chart-version)"
 
 for tool in helm kubectl; do
   command -v "$tool" > /dev/null || { echo "missing tool: $tool" >&2; exit 1; }
 done
-[ -n "$VERSION" ] || { echo "platform/kyverno/chart-version is empty" >&2; exit 1; }
+[ -n "$VERSION" ] || { echo "examples/kind/kyverno/chart-version is empty" >&2; exit 1; }
 
 helm repo add kyverno https://kyverno.github.io/kyverno/ --force-update > /dev/null
 helm repo update kyverno > /dev/null
 
-# The kyverno CLI is pinned in platform/kyverno/app-version. The chart must install the same version.
+# The kyverno CLI is pinned in examples/kind/kyverno/app-version. The chart must install the same version.
 chart_app="$(helm show chart kyverno/kyverno --version "$VERSION" | awk '/^appVersion:/ {print $2}' | tr -d '"')"
-want_app="$(tr -d '[:space:]' < platform/kyverno/app-version)"
+want_app="$(tr -d '[:space:]' < examples/kind/kyverno/app-version)"
 if [ "${chart_app#v}" != "${want_app#v}" ]; then
-  echo "chart $VERSION installs Kyverno '${chart_app:-unknown}', but platform/kyverno/app-version says $want_app" >&2
+  echo "chart $VERSION installs Kyverno '${chart_app:-unknown}', but examples/kind/kyverno/app-version says $want_app" >&2
   exit 1
 fi
 
 start=$SECONDS
-kubectl --context "$CONTEXT" apply -f platform/kyverno/cleanup-clusterrole.yaml -f platform/kyverno/cleanup-clusterrolebinding.yaml
 echo "==> installing Kyverno chart $VERSION"
 echo "    Helm waits for the pods and prints nothing meanwhile (up to about 3 minutes). Do not press Ctrl+C: it leaves the release in a pending state."
 helm upgrade --install kyverno kyverno/kyverno \
   --version "$VERSION" \
   --namespace kyverno --create-namespace \
   --kube-context "$CONTEXT" \
-  --values platform/kyverno/values.yaml \
+  --values examples/kind/kyverno/values.yaml \
   --wait --timeout 10m
 
-kubectl --context "$CONTEXT" apply -f platform/kyverno/platform-exceptions-namespace.yaml
-echo "==> applying the policies"
+echo "==> installing the bulkhead-platform chart"
 # Helm --wait returns when the deployment is ready, and in one CI run the next command ran 70 ms later and
 # got "connection refused" from the service. Wait until the service has an address behind it first.
 kubectl --context "$CONTEXT" -n kyverno wait --for=condition=Available deployment/kyverno-admission-controller --timeout=120s
@@ -48,12 +48,11 @@ done
 [ -n "${addresses:-}" ] || { echo "kyverno-svc has no ready address after 2 minutes" >&2; exit 1; }
 # The webhook that validates policies is served by the admission controller. Helm --wait returns when
 # the deployment is ready, but on a cold start the webhook can still refuse connections for a while
-# (seen once in CI). So the apply is retried, with a limit.
+# (seen once in CI). So the install is retried, with a limit.
 applied=0
 for attempt in $(seq 1 24); do
-  # -f takes the folder, not a glob: with more than one policy, "-f *.yaml" passes the second
-  # file as a stray argument. The folder is not read recursively, so tests/ is skipped.
-  if out="$(kubectl --context "$CONTEXT" apply -f platform/policies/ 2>&1)"; then
+  if out="$(helm upgrade --install bulkhead-platform charts/bulkhead-platform \
+      --kube-context "$CONTEXT" --values examples/kind/bulkhead-platform-values.yaml --wait --timeout 5m 2>&1)"; then
     echo "$out"
     applied=1
     break
@@ -63,21 +62,21 @@ for attempt in $(seq 1 24); do
     echo "$out" >&2
     exit 1
   fi
-  echo "policy apply failed (attempt $attempt of 24), retrying in 5 s: $(head -c 160 <<< "$out")"
+  echo "platform install failed (attempt $attempt of 24), retrying in 5 s: $(head -c 160 <<< "$out")"
   sleep 5
 done
-[ "$applied" -eq 1 ] || { echo "the policies were not applied after 24 attempts" >&2; echo "$out" >&2; exit 1; }
+[ "$applied" -eq 1 ] || { echo "the platform chart was not installed after 24 attempts" >&2; echo "$out" >&2; exit 1; }
 for p in $(kubectl --context "$CONTEXT" get validatingpolicies.policies.kyverno.io -o name); do
   kubectl --context "$CONTEXT" wait --for=jsonpath='{.status.conditionStatus.ready}'=true "$p" --timeout=120s
 done
 
-exceptions=(platform/exceptions/*.yaml)
+exceptions=(exceptions/*.yaml)
 if [ -e "${exceptions[0]}" ]; then
   echo "==> validating and applying ${#exceptions[@]} policy exception(s)"
   python3 scripts/validate_exceptions.py "${exceptions[@]}"
   kubectl --context "$CONTEXT" apply -f "${exceptions[@]}"
 else
-  echo "==> no policy exceptions in platform/exceptions"
+  echo "==> no policy exceptions in exceptions/"
 fi
 
 echo "kyverno ready: $((SECONDS - start)) s"

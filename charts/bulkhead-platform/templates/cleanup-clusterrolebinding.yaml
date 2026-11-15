@@ -2,12 +2,14 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kyverno-cleanup-policyexceptions
+  name: bulkhead-cleanup-policyexceptions
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: kyverno-cleanup-policyexceptions
+  name: bulkhead-cleanup-policyexceptions
 subjects:
   - kind: ServiceAccount
-    name: kyverno-cleanup-controller
-    namespace: kyverno
+    name: {{ .Values.kyverno.cleanupServiceAccount }}
+    namespace: {{ .Values.kyverno.namespace }}

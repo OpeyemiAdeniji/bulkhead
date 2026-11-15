@@ -1,6 +1,6 @@
 # Weekly pull requests that bump pinned versions.
 # Not covered here: the tool versions in scripts/install-tools.sh, the Kyverno chart in
-# platform/kyverno, Calico in scripts/cluster-up.sh and the pre-commit hooks
+# examples/kind/kyverno, Calico in scripts/cluster-up.sh and the pre-commit hooks
 # (make hooks-update). Those are bumped by hand, together with a measurement run.
 version: 2
 updates:

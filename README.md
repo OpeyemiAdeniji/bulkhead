@@ -87,11 +87,17 @@ Policy disallow-latest-image-tag failed: Image busybox:latest uses the tag lates
 Fix: pin the image to a version, for example busybox:1.36, or to a digest. Runbook: https://...
 ```
 
-**Exceptions.** When a workload really needs to skip a policy, the team adds a file to [`platform/exceptions/`](platform/exceptions/README.md) in a pull request. Continuous integration refuses the file unless it has an absolute end date at most 90 days ahead, an owner, a reason, a known tenant and policy, and a condition that narrows it to the workloads that need it ([ADR 0014](docs/adr/0014-exception-files-checked-in-ci.md)). Kyverno deletes the exception at its date ([ADR 0008](docs/adr/0008-kyverno-cel-policies-and-expiring-exceptions.md)).
+**Exceptions.** When a workload really needs to skip a policy, the team adds a file to [`exceptions/`](exceptions/README.md) in a pull request. Continuous integration refuses the file unless it has an absolute end date at most 90 days ahead, an owner, a reason, a known tenant and policy, and a condition that narrows it to the workloads that need it ([ADR 0014](docs/adr/0014-exception-files-checked-in-ci.md)). Kyverno deletes the exception at its date ([ADR 0008](docs/adr/0008-kyverno-cel-policies-and-expiring-exceptions.md)).
 
 **When Kyverno is down.** The guardrails protect against mistakes, not against someone who stops Kyverno on purpose. When Kyverno is scaled to zero, it removes its webhooks and the policies do not apply. A crash of the container refused pod creation in tenant namespaces for about 8 seconds, and a rolling restart opened no gap in one test. A tenant admin cannot stop Kyverno. The details and their limits are in [ADR 0011](docs/adr/0011-kyverno-outage-behaviour.md).
 
-## Quick start
+## Install on your own cluster
+
+Bulkhead is two Helm charts: `charts/bulkhead-platform`, installed once per cluster next to Kyverno, and `charts/bulkhead-tenant`, installed once per tenant file. Everything that differs between clusters is a value: who your platform admins are, where DNS runs, the namespace prefix and the Pod Security level ([ADR 0016](docs/adr/0016-two-charts-configurable-per-cluster.md)).
+
+[docs/install.md](docs/install.md) walks through it for Amazon EKS, Google Kubernetes Engine, Azure Kubernetes Service and other clusters, including the one thing Bulkhead cannot do for you: a network plugin that enforces network policies. The charts are tested on kind only so far, and a cloud run is planned in Phase 1 of the roadmap.
+
+## Quick start (local demo on kind)
 
 You need Docker, bash, make, curl and Python 3. The tools are pinned to the versions that were measured, and every download is checked against its checksum.
 
@@ -114,7 +120,7 @@ make test-exceptions       # valid exception files pass, invalid ones fail for t
 make cluster-up            # build the kind cluster and install Calico (about 3 to 4 minutes)
 make tenants-apply         # render every tenant file and apply it
 make test-isolation        # 41 isolation checks
-make kyverno-up            # install Kyverno, the policies and the exceptions
+make kyverno-up            # install Kyverno, the bulkhead-platform chart and the exceptions
 make test-policy-live      # 29 live policy checks
 make cluster-down          # remove the cluster
 ```
@@ -170,7 +176,7 @@ One machine (Windows 11 with WSL2, 7.7 GiB of memory, 8 CPUs) and GitHub's `ubun
 - No check yet tries to run a privileged pod (Pod Security is set to `restricted` on every namespace), or to reach the internet (the baseline denies egress).
 - Removing a tenant file does not remove the tenant until Argo CD arrives. For now, a tenant is removed by deleting its namespace.
 - The policies are not tested on StatefulSets, DaemonSets and Jobs, during a Helm upgrade of Kyverno or a node drain, or with two Kyverno replicas. The Kyverno CLI cannot test updates and deletions offline, so those parts are tested live only.
-- The list of platform admin groups is fixed in `protect-platform-objects`. On clusters other than kubeadm or kind, platform admins must be in `bulkhead:platform-admins` or `system:masters`.
+- The charts have not been run on a cloud cluster yet. [docs/install.md](docs/install.md) is written from the providers' documentation.
 - Not built yet: the pull request preview comment, the Trivy gate, cost estimates and the platform SLO.
 - The size tiers and the default limits have not been compared with real workloads.
 - Everything was tested with kind v0.33.0, Kubernetes v1.37.0, Calico v3.33.0 and Kyverno v1.19.2 only.
@@ -196,6 +202,7 @@ One machine (Windows 11 with WSL2, 7.7 GiB of memory, 8 CPUs) and GitHub's `ubun
 | [0013](docs/adr/0013-rename-to-bulkhead.md) | Rename the project to Bulkhead |
 | [0014](docs/adr/0014-exception-files-checked-in-ci.md) | Exception files are checked in CI, with an owner, a reason and at most 90 days |
 | [0015](docs/adr/0015-protect-platform-objects.md) | A policy protects the platform's objects in tenant namespaces, as a second layer |
+| [0016](docs/adr/0016-two-charts-configurable-per-cluster.md) | Two Helm charts, configurable per cluster, with the kind demo as one example |
 
 ## Roadmap
 
@@ -215,13 +222,11 @@ The project is becoming an open source project for other engineers to install an
 
 ```
 tenants/               one file per tenant, the only place a team edits
+exceptions/            policy exceptions, one per file, checked in CI
 schemas/               the JSON Schema of the tenant contract
-platform/charts/       the Helm chart that renders a tenant
-platform/policies/     the Kyverno policies, and their offline tests
-platform/exceptions/   policy exceptions, one per file, checked in CI
-platform/kyverno/      the pinned Kyverno version and its install values
-platform/calico/       checksums of the Calico manifests
-platform/kind/         the kind cluster configuration
+charts/bulkhead-tenant/    the Helm chart that renders one tenant
+charts/bulkhead-platform/  the Kyverno policies and their offline tests, once per cluster
+examples/kind/         the local demo: kind configuration, Calico checksums, pinned Kyverno, kind values
 scripts/               cluster, chart, install and validation scripts
 tests/contract/        tenant files that must pass and files that must fail
 tests/exceptions/      exception files that must pass and files that must fail

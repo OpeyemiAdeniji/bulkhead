@@ -33,8 +33,9 @@ Done when: v0.2.0 is released with a signed tag and release notes, and every v0.
 
 ### Phase 1: installable by others (v0.3)
 
-- **Layout:** separate the product (`charts/`, `policies/`) from the local demo (`examples/kind/`).
-- **Configuration:** values for everything that differs between clusters: the DNS selector, the tenant label, the size tiers, the Pod Security level, and an optional ingress allowance.
+- **Layout** (done, ADR 0016): the product in `charts/bulkhead-tenant` and `charts/bulkhead-platform`, the local demo in `examples/kind/`, and the files that teams own in `tenants/` and `exceptions/`.
+- **Configuration** (done, ADR 0016): values for the platform admins, the DNS service and extra DNS CIDRs, the namespace prefix, the Pod Security level, the size tiers and the exceptions namespace, with a values schema in each chart. An optional ingress allowance is still open.
+- **Install guide** (written, `docs/install.md`): Amazon EKS, Google Kubernetes Engine, Azure Kubernetes Service and other clusters. It must be followed on at least one cloud cluster before v0.3 is released.
 - **Packaging:** publish the chart to `ghcr.io` as an OCI artifact, signed with cosign, with an SBOM and build provenance. List it on Artifact Hub. Publish the policies as a versioned bundle.
 - **Releases:** releases are made from signed tags by a workflow, with generated release notes from the changelog. Semantic Versioning, and an upgrade note for every minor version.
 - **Compatibility:** continuous integration runs the isolation suite on the three newest Kubernetes minor versions. A published compatibility table lists Kubernetes, Calico and Kyverno versions that were tested.
