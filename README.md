@@ -84,7 +84,7 @@ make test-contract       # valid files pass, invalid files fail for the right re
 make chart-test          # lint and render the chart for every tenant
 make cluster-up          # build the kind cluster and install Calico
 make tenants-apply       # render every tenant file and apply it
-make test-isolation      # 38 checks against the running cluster
+make test-isolation      # 41 checks against the running cluster
 make cluster-down        # remove the cluster
 ```
 
@@ -108,12 +108,12 @@ Tracked in https://github.com/OpeyemiAdeniji/bulkhead/issues/14.
 
 ## What is proven, and how
 
-`make test-isolation` runs 38 checks, and the same suite runs in CI.
+`make test-isolation` runs 41 checks, and the same suite runs in CI.
 
 | Property | Checks |
 |---|---|
 | A tenant cannot read another tenant's secrets, and viewers cannot read secrets | 6 |
-| A tenant cannot delete its default-deny policy, quota or limit range, cannot create role bindings, and cannot loosen the Pod Security level | 5 |
+| A tenant cannot delete its default-deny policy, quota or limit range, cannot create role bindings, cannot loosen the Pod Security level, and cannot create endpoints (no traffic redirection). It can still read endpoints and exec into its own pods | 8 |
 | Traffic between pods of one tenant works, on the same node and across nodes. DNS works. Traffic between tenants is blocked, on the same node and across nodes | 14 |
 | A CPU hog is held at its limit, a memory hog is killed at its limit, and a quiet tenant on the same node keeps answering | 5 |
 | A second pod above the quota, NodePort and LoadBalancer services, and a container above the tier maximum are rejected. A pod without resources gets the default limit. Ten pods without resources fit in the small tier, and an eleventh is rejected by the pod count | 8 |

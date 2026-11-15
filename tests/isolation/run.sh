@@ -140,6 +140,16 @@ expect_blocked "alpha admin cannot delete its quota" "forbidden" as_alpha -n "$A
 expect_blocked "alpha admin cannot delete its limit range" "forbidden" as_alpha -n "$A" delete limitrange tenant-limits --dry-run=server
 expect_blocked "alpha admin cannot create role bindings" "forbidden" as_alpha -n "$A" create rolebinding probe --role=tenant-admin --group=other --dry-run=server
 expect_blocked "alpha admin cannot loosen the Pod Security level" "forbidden" as_alpha label namespace "$A" pod-security.kubernetes.io/enforce=privileged --overwrite --dry-run=server
+# Writing endpoints would let a tenant point a service at addresses outside its namespace
+# (CVE-2021-25740). Reading them, and exec into its own pods, must still work.
+endpoints_manifest() {
+  printf '%s
+' "apiVersion: v1" "kind: Endpoints" "metadata: {name: iso-redirect}"     "subsets: [{addresses: [{ip: 10.96.0.1}], ports: [{port: 443}]}]"
+}
+create_endpoints_as_alpha() { endpoints_manifest | as_alpha -n "$A" create -f - --dry-run=server; }
+expect_blocked "alpha admin cannot create endpoints (no traffic redirection)" "forbidden" create_endpoints_as_alpha
+expect_ok "alpha admin can read the endpoints of its namespace" as_alpha -n "$A" get endpoints
+expect_ok "alpha admin may still exec into its own pods" as_alpha -n "$A" auth can-i create pods/exec
 
 echo "== network isolation between tenants: same node and across nodes (pods are reached by IP, so DNS is not involved)"
 mapfile -t workers < <(k get nodes -l '!node-role.kubernetes.io/control-plane' -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}')

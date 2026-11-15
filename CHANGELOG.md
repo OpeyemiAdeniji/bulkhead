@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **The `tenant-admin` role can no longer write endpoints.** Writing endpoints lets a tenant point a service at addresses outside its namespace (CVE-2021-25740), which is why Kubernetes removed the right from its built-in roles. Endpoints and endpoint slices are now read-only, `pods/log` is read-only, and `pods/exec` and `pods/portforward` get only the verbs they use. Three new isolation checks (41 in total): a tenant admin cannot create endpoints, can still read them, and can still exec into its own pods.
+
 ### Added
 - **The policy `protect-platform-objects`** (ADR 0015): the network policies, quota, limit range, role and role bindings that the platform puts in a tenant namespace cannot be changed or deleted except by platform admins and Kubernetes itself, even when someone has too many rights in the namespace. Its message names the fix and the runbook `docs/runbooks/policy-protect-platform-objects.md`. Seven new live checks (29 in total).
 - **Policy exceptions are checked before they reach the cluster** (ADR 0014). Exception files live in `platform/exceptions/`. `make validate-exceptions` refuses a file without an absolute expiry date in the future and at most 90 days ahead, without an owner, a reason or a known tenant, with an unknown policy, or without a match condition. `make test-exceptions` runs 13 files that must fail for a stated reason and one that must pass, and both run in the `contract` CI job. `make kyverno-up` validates and applies the exceptions. The live policy suite checks that the example exception is accepted by the cluster.
