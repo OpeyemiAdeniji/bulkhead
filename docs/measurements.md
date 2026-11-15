@@ -262,3 +262,18 @@ Failed runs that were read: `isolation` twice (runs 40332877934 and 40337348572,
 The slowest `policy-live` run (299 s) is the one that pull request 20 already noted: its steps ended after about 149 s, and where the rest went is not known.
 
 This replaces the range in "CI runs of the isolation job (v0.1)" above, which was read from five runs.
+
+## Cilium as the network plugin (Phase 1)
+
+Method: on 2026-11-15 the local cluster was rebuilt with `CNI=cilium make cluster-up` (Kubernetes 1.37.0, Cilium 1.20.4 from its Helm chart with `ipam.mode=kubernetes`, kube-proxy kept), and every suite was run through the make targets. Then the network policies of both tenants were deleted by the platform admin, the isolation suite was run again, and the tenants were applied again. One run each.
+
+| Step | Result |
+|---|---|
+| `make cluster-up` with Cilium | 227 s, of which `kind create cluster` took 64 s. Images were downloaded during the run |
+| `make test-isolation` | 41 of 41 |
+| `make kyverno-up` | 88 s |
+| `make test-policy-live` | 29 of 29 |
+| Isolation suite without the network policies | 33 passed and 8 failed: exactly the eight checks that tenants cannot reach each other, on the same node and across nodes, in both directions |
+| After the tenants were applied again | 41 of 41 |
+
+Memory with Cilium, Kyverno and both tenants: 2.9 GiB used by `free -h`, against 3.1 GiB with Calico and Kyverno in the v0.2 measurement. The two were taken on different days with other activity on the machine, so this does not say which plugin uses less.
