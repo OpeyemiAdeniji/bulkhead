@@ -60,7 +60,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          # Helm and cosign keep separate logins, so both log in. Found by the v0.3.0-rc.1 run.
           echo "$GITHUB_TOKEN" | helm registry login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          echo "$GITHUB_TOKEN" | cosign login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           for name in bulkhead-tenant bulkhead-platform; do
             out="$(helm push "dist/$name-$VERSION.tgz" "oci://$REGISTRY" 2>&1)"
             echo "$out"
