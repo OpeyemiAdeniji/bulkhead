@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-15
+
 ### Security
 - **The `tenant-admin` role can no longer write endpoints.** Writing endpoints lets a tenant point a service at addresses outside its namespace (CVE-2021-25740), which is why Kubernetes removed the right from its built-in roles. Endpoints and endpoint slices are now read-only, `pods/log` is read-only, and `pods/exec` and `pods/portforward` get only the verbs they use. Three new isolation checks (41 in total): a tenant admin cannot create endpoints, can still read them, and can still exec into its own pods.
 
@@ -77,5 +79,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `make setup` and `CONTRIBUTING.md` now use pre-commit installed with pipx, not a virtualenv.
 - The YAML hook skips Helm templates, which are not valid YAML until they are rendered.
 
-[Unreleased]: https://github.com/OpeyemiAdeniji/bulkhead/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/OpeyemiAdeniji/bulkhead/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/OpeyemiAdeniji/bulkhead/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/OpeyemiAdeniji/bulkhead/releases/tag/v0.1.0
