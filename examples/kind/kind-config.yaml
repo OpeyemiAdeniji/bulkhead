@@ -1,6 +1,7 @@
-# kind cluster for the tenant platform.
-# The default network plugin is disabled. Calico is installed by
-# scripts/cluster-up.sh (see docs/adr/0003-network-plugin-calico.md).
+# kind cluster for the local demo.
+# The default network plugin is disabled. scripts/cluster-up.sh installs Calico or Cilium
+# (see docs/adr/0003-network-plugin-calico.md), and sets the node image from
+# examples/kind/node-images, pinned by digest, with --image.
 # The pod range matches the default address pool of Calico.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -9,8 +10,5 @@ networking:
   podSubnet: 192.168.0.0/16
 nodes:
   - role: control-plane
-    image: kindest/node:v1.37.0
   - role: worker
-    image: kindest/node:v1.37.0
   - role: worker
-    image: kindest/node:v1.37.0

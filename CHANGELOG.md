@@ -6,7 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Tests on three Kubernetes versions and two network plugins.** `make cluster-up` takes `K8S_VERSION` (1.37.0, 1.36.4 or 1.35.8, node images pinned by digest in `examples/kind/node-images`) and `CNI` (`calico` or `cilium`, Cilium pinned in `examples/kind/cilium-version`). A new `compatibility` CI job runs the isolation and live policy suites on 1.36 with Calico, and on 1.35 and 1.37 with Cilium. Calico 3.33.0 does not install on Kubernetes 1.35 (its manifests create `MutatingAdmissionPolicy` objects of `admissionregistration.k8s.io/v1`), so `make cluster-up` refuses that combination with a clear message. Locally on Cilium 1.20.4: 41 of 41 isolation checks, 29 of 29 live policy checks, and with the network policies deleted exactly the eight network checks that must be blocked failed.
+
 ### Changed
+- The kind node image is now pinned by digest.
 - **Bulkhead is two Helm charts that can be installed on any cluster** (ADR 0016). `charts/bulkhead-tenant` renders one tenant, as before, and adds values for the namespace prefix, the Pod Security level and where DNS runs (including extra CIDRs such as NodeLocal DNSCache). `charts/bulkhead-platform` holds the two policies, the exceptions namespace and the cleanup permission, with values for the platform admins, the exceptions namespace, Kyverno's namespace and the runbook links. It requires Kyverno and does not install it. Both charts have a values schema. With default values, the rendered tenant is identical to v0.2.0.
 - **Layout:** `platform/` is gone. The charts are in `charts/`, the local demo (kind configuration, Calico checksums, pinned Kyverno, kind values) in `examples/kind/`, and policy exceptions in `exceptions/`.
 - The kind admin group `kubeadm:cluster-admins` is no longer built into the policy. The demo sets it in `examples/kind/bulkhead-platform-values.yaml`. **A cluster set up with v0.2.0 must be rebuilt** (`make cluster-down` and the quick start), because the policies are now owned by a Helm release.

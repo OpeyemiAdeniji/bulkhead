@@ -133,5 +133,45 @@ jobs:
           kubectl --context kind-bulkhead get pods -A -o wide || true
           kubectl --context kind-bulkhead get events -A --sort-by=.lastTimestamp | tail -50 || true
 
+  # The jobs above run Kubernetes 1.37 with Calico and are required checks. This one runs both
+  # suites on the two older supported Kubernetes versions, and with a second network plugin,
+  # so that the claims do not depend on one version or on Calico. It is not required yet.
+  compatibility:
+    name: compatibility (Kubernetes ${{ matrix.k8s }}, ${{ matrix.cni }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {k8s: 1.36.4, cni: calico}
+          - {k8s: 1.35.8, cni: cilium}
+          - {k8s: 1.37.0, cni: cilium}
+    env:
+      K8S_VERSION: ${{ matrix.k8s }}
+      CNI: ${{ matrix.cni }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install pinned tools
+        run: |
+          bash scripts/install-tools.sh "$HOME/.local/bin" kind kubectl helm
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Build the cluster
+        run: make cluster-up
+      - name: Apply the tenants
+        run: make tenants-apply
+      - name: Run the isolation tests
+        run: make test-isolation
+      - name: Install Kyverno and the policies
+        run: make kyverno-up
+      - name: Run the live policy tests
+        run: make test-policy-live
+      - name: Show the cluster state after a failure
+        if: failure()
+        run: |
+          kubectl --context kind-bulkhead get nodes -o wide || true
+          kubectl --context kind-bulkhead get pods -A -o wide || true
+          kubectl --context kind-bulkhead get events -A --sort-by=.lastTimestamp | tail -50 || true
+
   # Keep the job names stable: the ruleset matches required checks by name.
   # Actions are pinned to commit SHAs. Dependabot proposes updates (.github/dependabot.yml).

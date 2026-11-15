@@ -132,6 +132,17 @@ Tested:
 - Ubuntu under WSL2 on Windows 11, x86-64, with Docker Desktop.
 - The `ubuntu-latest` runner of GitHub Actions, x86-64.
 
+Every pull request runs the isolation and live policy suites on these combinations, all on kind:
+
+| Kubernetes | Network plugin | CI job |
+|---|---|---|
+| 1.37.0 | Calico 3.33.0 | `isolation` and `policy-live` (required) |
+| 1.36.4 | Calico 3.33.0 | `compatibility` |
+| 1.35.8 | Cilium 1.20.4 | `compatibility` |
+| 1.37.0 | Cilium 1.20.4 | `compatibility` |
+
+`K8S_VERSION=1.35.8 CNI=cilium make cluster-up` builds any of them locally. Calico 3.33.0 needs Kubernetes 1.36 or newer, because its install creates `MutatingAdmissionPolicy` objects of an API version that 1.35 does not serve, so 1.35 is tested with Cilium. The kubectl client is 1.37, which is two minor versions newer than a 1.35 cluster, one more than Kubernetes supports. The suites passed with it, but that is the reason if a command behaves differently there.
+
 The cluster used about 1.8 GiB of memory and Kyverno about 0.5 GiB more, on a machine with 7.7 GiB. The minimum has not been determined.
 
 Not tested: macOS, Windows without WSL2, and ARM processors. The quick start has also not been followed from a clean copy of the repository yet. `scripts/install-tools.sh` downloads `linux-amd64` binaries, and `tests/isolation/run.sh` uses `mapfile` and `date +%s%N`, which need bash 4 and GNU date. Tracked in [issue 14](https://github.com/OpeyemiAdeniji/bulkhead/issues/14).

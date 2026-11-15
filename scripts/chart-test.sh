@@ -16,7 +16,7 @@ for tool in helm kubeconform; do
 done
 
 # The Kubernetes version whose API schema the objects are checked against.
-# Keep it equal to the node image in examples/kind/kind-config.yaml.
+# Keep it equal to the default Kubernetes version in scripts/cluster-up.sh.
 K8S_SCHEMA_VERSION="${K8S_SCHEMA_VERSION:-1.37.0}"
 
 chart="charts/bulkhead-tenant"
