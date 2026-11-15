@@ -113,7 +113,7 @@ Then render each tenant file with it, and apply:
 helm template tenant-alpha "oci://$REGISTRY/bulkhead-tenant" --version "$VERSION" -f cluster-values.yaml -f tenants/alpha.yaml | kubectl apply -f -
 ```
 
-Or, from a clone of this repository: `TENANT_VALUES=cluster-values.yaml make tenants-apply`. A GitOps controller can do the same with one application per tenant file (planned with Argo CD in v0.5).
+Or, from a clone of this repository: `KUBE_CONTEXT=<your context> TENANT_VALUES=cluster-values.yaml make tenants-apply`. Without `KUBE_CONTEXT`, the command applies to the local kind cluster. A GitOps controller can do the same with one application per tenant file (planned with Argo CD in v0.5).
 
 The DNS defaults (`kube-system`, pods labelled `k8s-app: kube-dns`, port 53) match CoreDNS and kube-dns on EKS, GKE, AKS, kubeadm and kind. If your DNS runs elsewhere, set `dns.namespaceLabels`, `dns.podLabels` and `dns.ports`.
 
