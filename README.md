@@ -138,10 +138,10 @@ Every pull request runs the isolation and live policy suites on these combinatio
 |---|---|---|
 | 1.37.0 | Calico 3.33.0 | `isolation` and `policy-live` (required) |
 | 1.36.4 | Calico 3.33.0 | `compatibility` |
-| 1.35.8 | Calico 3.33.0 | `compatibility` |
+| 1.35.8 | Cilium 1.20.4 | `compatibility` |
 | 1.37.0 | Cilium 1.20.4 | `compatibility` |
 
-`K8S_VERSION=1.35.8 CNI=cilium make cluster-up` builds any of them locally. The kubectl client is 1.37, which is two minor versions newer than a 1.35 cluster, one more than Kubernetes supports. The suites passed with it, but that is the reason if a command behaves differently there.
+`K8S_VERSION=1.35.8 CNI=cilium make cluster-up` builds any of them locally. Calico 3.33.0 needs Kubernetes 1.36 or newer, because its install creates `MutatingAdmissionPolicy` objects of an API version that 1.35 does not serve, so 1.35 is tested with Cilium. The kubectl client is 1.37, which is two minor versions newer than a 1.35 cluster, one more than Kubernetes supports. The suites passed with it, but that is the reason if a command behaves differently there.
 
 The cluster used about 1.8 GiB of memory and Kyverno about 0.5 GiB more, on a machine with 7.7 GiB. The minimum has not been determined.
 

@@ -277,3 +277,7 @@ Method: on 2026-11-15 the local cluster was rebuilt with `CNI=cilium make cluste
 | After the tenants were applied again | 41 of 41 |
 
 Memory with Cilium, Kyverno and both tenants: 2.9 GiB used by `free -h`, against 3.1 GiB with Calico and Kyverno in the v0.2 measurement. The two were taken on different days with other activity on the machine, so this does not say which plugin uses less.
+
+## Calico 3.33.0 on Kubernetes 1.35 (Phase 1)
+
+Observed in CI on 2026-11-15 (run 43664743695, the first run of the `compatibility` job): on a kind cluster with `kindest/node:v1.35.8`, `kubectl create -f v3_projectcalico_org.yaml` from Calico v3.33.0 failed for six objects with `no matches for kind "MutatingAdmissionPolicy" in version "admissionregistration.k8s.io/v1"` (and the matching bindings), and `make cluster-up` stopped. The same manifests installed on 1.36.4 and 1.37.0. So the pinned Calico needs a cluster that serves that API version, which 1.35 does not. Whether an older Calico release works on 1.35 was not tried. Kubernetes 1.35 is tested with Cilium instead.

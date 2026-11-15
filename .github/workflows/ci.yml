@@ -145,7 +145,7 @@ jobs:
       matrix:
         include:
           - {k8s: 1.36.4, cni: calico}
-          - {k8s: 1.35.8, cni: calico}
+          - {k8s: 1.35.8, cni: cilium}
           - {k8s: 1.37.0, cni: cilium}
     env:
       K8S_VERSION: ${{ matrix.k8s }}
