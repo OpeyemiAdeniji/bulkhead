@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Bulkhead is two Helm charts that can be installed on any cluster** (ADR 0016). `charts/bulkhead-tenant` renders one tenant, as before, and adds values for the namespace prefix, the Pod Security level and where DNS runs (including extra CIDRs such as NodeLocal DNSCache). `charts/bulkhead-platform` holds the two policies, the exceptions namespace and the cleanup permission, with values for the platform admins, the exceptions namespace, Kyverno's namespace and the runbook links. It requires Kyverno and does not install it. Both charts have a values schema. With default values, the rendered tenant is identical to v0.2.0.
+- **Layout:** `platform/` is gone. The charts are in `charts/`, the local demo (kind configuration, Calico checksums, pinned Kyverno, kind values) in `examples/kind/`, and policy exceptions in `exceptions/`.
+- The kind admin group `kubeadm:cluster-admins` is no longer built into the policy. The demo sets it in `examples/kind/bulkhead-platform-values.yaml`. **A cluster set up with v0.2.0 must be rebuilt** (`make cluster-down` and the quick start), because the policies are now owned by a Helm release.
+- `make policy-test` tests the rendered platform chart, and `make chart-test` also lints, renders and schema-checks the platform chart (Kyverno kinds through the CRDs catalog) and checks that the values schemas refuse wrong values.
+- `make tenants-apply` takes cluster-wide tenant values from `TENANT_VALUES`.
+
+### Added
+- `docs/install.md`: installing Bulkhead on Amazon EKS, Google Kubernetes Engine, Azure Kubernetes Service and other clusters. Written from the providers' documentation and not yet run on them.
+
 ## [0.2.0] - 2026-11-15
 
 ### Security

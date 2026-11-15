@@ -1,6 +1,6 @@
 {{/* Namespace of the tenant. */}}
 {{- define "tenant.namespace" -}}
-tenant-{{ required "name is required (pass the tenant file with -f)" .Values.name }}
+{{ .Values.namespacePrefix }}{{ required "name is required (pass the tenant file with -f)" .Values.name }}
 {{- end -}}
 
 {{/* Labels on every object. Values are quoted because they come from the tenant file. */}}

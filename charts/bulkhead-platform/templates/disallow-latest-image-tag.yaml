@@ -2,6 +2,8 @@ apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
   name: disallow-latest-image-tag
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
   annotations:
     policies.kyverno.io/title: Disallow the latest image tag
     policies.kyverno.io/description: >-
@@ -36,4 +38,4 @@ spec:
   validations:
     - expression: "size(variables.unpinned) == 0"
       messageExpression: >-
-        'Image ' + variables.unpinned.join(', ') + ' uses the tag latest or has no tag. Fix: pin the image to a version, for example busybox:1.36, or to a digest. Runbook: https://github.com/OpeyemiAdeniji/bulkhead/blob/main/docs/runbooks/policy-disallow-latest-tag.md'
+        'Image ' + variables.unpinned.join(', ') + ' uses the tag latest or has no tag. Fix: pin the image to a version, for example busybox:1.36, or to a digest. Runbook: {{ .Values.runbookBaseURL }}/policy-disallow-latest-tag.md'

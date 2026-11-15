@@ -24,7 +24,7 @@ A Deployment or CronJob that uses `latest` is rejected when it is created or upd
 
 ## If you need an exception
 
-An exception is a file in `platform/exceptions/`, added in a pull request: a `PolicyException` in the namespace `platform-exceptions`, with an absolute expiry date at most 90 days ahead, an owner, a reason and the tenant it is for. Continuous integration refuses a file that breaks these rules, and Kyverno deletes the exception at its date. The rules and an example are in [`platform/exceptions/README.md`](../../platform/exceptions/README.md), and the reasoning is in ADR 0008 and ADR 0014.
+An exception is a file in `exceptions/`, added in a pull request: a `PolicyException` in the namespace `platform-exceptions`, with an absolute expiry date at most 90 days ahead, an owner, a reason and the tenant it is for. Continuous integration refuses a file that breaks these rules, and Kyverno deletes the exception at its date. The rules and an example are in [`exceptions/README.md`](../../exceptions/README.md), and the reasoning is in ADR 0008 and ADR 0014.
 
 ## Not covered
 

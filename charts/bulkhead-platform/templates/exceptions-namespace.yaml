@@ -1,0 +1,10 @@
+# The only namespace where Kyverno honours policy exceptions. Tenants have no rights here.
+# It must not carry the tenant label app.kubernetes.io/managed-by, so that tenant policies
+# never match it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.exceptions.namespace }}
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+    purpose: policy-exceptions

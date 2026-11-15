@@ -5,7 +5,7 @@
 # Usage: scripts/install-tools.sh [INSTALL_DIR [TOOL...]]
 #   INSTALL_DIR defaults to $HOME/.local/bin.
 #   TOOL is kind, kubectl, helm, kubeconform or kyverno. With no TOOL, all are installed.
-# The kyverno version is read from platform/kyverno/app-version.
+# The kyverno version is read from examples/kind/kyverno/app-version.
 set -euo pipefail
 
 KIND_VERSION="v0.33.0"
@@ -14,7 +14,7 @@ HELM_VERSION="v4.3.1"
 KUBECONFORM_VERSION="v0.8.0"
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-KYVERNO_VERSION="$(tr -d '[:space:]' < "$root/platform/kyverno/app-version")"
+KYVERNO_VERSION="$(tr -d '[:space:]' < "$root/examples/kind/kyverno/app-version")"
 
 dir="${1:-$HOME/.local/bin}"
 shift || true

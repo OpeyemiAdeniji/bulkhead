@@ -244,12 +244,13 @@ expect_blocked "changing the image of a running pod to latest is denied" "Policy
 expect_blocked "changing the image of a deployment to latest is denied at the deployment itself" "Policy $POLICY failed" patch_image_as_alpha deployment live-update-deploy /spec/template/spec/containers/0/image
 
 echo "== a tenant admin cannot change policies or exceptions (real attempts, server-side dry run)"
+helm template bulkhead-platform charts/bulkhead-platform -s "templates/$POLICY.yaml" > "$work/policy.yaml"
 far="$(date -u -d '+1 hour' +%Y-%m-%dT%H%M%SZ)"
 exception_manifest probe-exception platform-exceptions "$far" nothing > "$work/exception-platform.yaml"
 exception_manifest probe-exception "$A" "$far" nothing > "$work/exception-tenant.yaml"
 expect_blocked "a tenant admin cannot create an exception in platform-exceptions" "forbidden" as_alpha create -f "$work/exception-platform.yaml" --dry-run=server
 expect_blocked "a tenant admin cannot create an exception in its own namespace" "forbidden" as_alpha create -f "$work/exception-tenant.yaml" --dry-run=server
-expect_blocked "a tenant admin cannot create a policy" "forbidden" as_alpha create -f "platform/policies/$POLICY.yaml" --dry-run=server
+expect_blocked "a tenant admin cannot create a policy" "forbidden" as_alpha create -f "$work/policy.yaml" --dry-run=server
 expect_blocked "a tenant admin cannot delete the policy" "forbidden" as_alpha delete validatingpolicies.policies.kyverno.io "$POLICY" --dry-run=server
 expect_ok "the platform admin can create the same exception (dry run), so the refusals above are about the identity" k create -f "$work/exception-platform.yaml" --dry-run=server
 # The example that passes make test-exceptions must also be accepted by the cluster, so the

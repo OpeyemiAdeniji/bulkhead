@@ -1,4 +1,4 @@
-# expect: is not a ValidatingPolicy in platform/policies
+# expect: is not a ValidatingPolicy of the bulkhead-platform chart
 apiVersion: policies.kyverno.io/v1
 kind: PolicyException
 metadata:

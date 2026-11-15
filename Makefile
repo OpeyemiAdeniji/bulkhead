@@ -24,8 +24,8 @@ validate: ## Validate the tenant files against the contract
 test-contract: ## Run the contract tests (valid files pass, invalid files fail)
 	bash tests/contract/run.sh
 
-validate-exceptions: ## Validate the policy exceptions in platform/exceptions
-	python3 scripts/validate_exceptions.py $(wildcard platform/exceptions/*.yaml)
+validate-exceptions: ## Validate the policy exceptions in exceptions/
+	python3 scripts/validate_exceptions.py $(wildcard exceptions/*.yaml)
 
 test-exceptions: ## Run the exception tests (valid files pass, invalid files fail)
 	bash tests/exceptions/run.sh
@@ -45,7 +45,7 @@ tenants-apply: ## Render every tenant file and apply it to the local cluster
 test-isolation: ## Run the isolation tests against the local cluster
 	bash tests/isolation/run.sh
 
-kyverno-up: ## Install Kyverno into the local cluster at the pinned chart version
+kyverno-up: ## Install Kyverno and the bulkhead-platform chart into the local cluster
 	bash scripts/kyverno-install.sh
 
 policy-test: ## Test the Kyverno policies offline, and check that the tests can fail

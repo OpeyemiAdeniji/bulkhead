@@ -1,0 +1,29 @@
+# Values of the platform chart. Install it once per cluster, after Kyverno.
+# (docs/adr/0016-two-charts-configurable-per-cluster.md)
+
+# Who may change or delete the objects that the platform puts in tenant namespaces
+# (docs/adr/0015-protect-platform-objects.md). Bind your platform admins to one of these
+# groups, or list them here. Examples:
+#   kind and kubeadm clusters:  groups: [kubeadm:cluster-admins]
+#   Amazon EKS:                 the Kubernetes group of the access entry of your admin role
+#   Google Kubernetes Engine:   users: [admin@example.com], or a Google group in RBAC
+# The service accounts in kube-system and the user system:kube-controller-manager are always
+# allowed, so that Kubernetes can delete a tenant namespace. That cannot be switched off.
+platformAdmins:
+  groups:
+    - system:masters
+    - bulkhead:platform-admins
+  users: []
+
+# The only namespace where Kyverno honours policy exceptions. Kyverno must be installed with
+# the same namespace (features.policyExceptions.namespace in the Kyverno chart).
+exceptions:
+  namespace: platform-exceptions
+
+# Where Kyverno runs, so that its cleanup controller may delete expired exceptions.
+kyverno:
+  namespace: kyverno
+  cleanupServiceAccount: kyverno-cleanup-controller
+
+# Where the runbooks that the policy messages link to are published.
+runbookBaseURL: https://github.com/OpeyemiAdeniji/bulkhead/blob/main/docs/runbooks

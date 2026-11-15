@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for the Kyverno policies in platform/policies.
+# Tests for the Kyverno policies of the bulkhead-platform chart, rendered with its default values.
 #
 # 1. kyverno test passes. --warnings-as-errors makes a deprecated policy type fail the run.
 # 2. The table has the expected number of rows, and the only Excluded rows are the
@@ -18,16 +18,28 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-POLICIES_DIR="${POLICIES_DIR:-platform/policies}"
+CHART="charts/bulkhead-platform"
 EXPECTED_ROWS=8
 EXPECTED_FAIL_ROWS=4
 EXPECTED_OUTSIDE_ROWS=1
-HELPERS="${CHART_HELPERS:-platform/charts/tenant/templates/_helpers.tpl}"
+HELPERS="${CHART_HELPERS:-charts/bulkhead-tenant/templates/_helpers.tpl}"
 
-command -v kyverno > /dev/null || { echo "missing tool: kyverno" >&2; exit 1; }
+for tool in kyverno helm; do
+  command -v "$tool" > /dev/null || { echo "missing tool: $tool" >&2; exit 1; }
+done
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
+
+# The tests run against the rendered chart, so they test what users install. POLICIES_DIR can
+# point at another copy of rendered policies with a tests/ folder, to try that a check can fail.
+if [ -z "${POLICIES_DIR:-}" ]; then
+  helm template bulkhead-platform "$CHART" --output-dir "$work/render" > /dev/null
+  POLICIES_DIR="$work/rendered"
+  mkdir -p "$POLICIES_DIR"
+  cp "$work/render/bulkhead-platform/templates/"*.yaml "$POLICIES_DIR/"
+  cp -r "$CHART/tests" "$POLICIES_DIR/tests"
+fi
 failures=0
 
 pass() { echo "pass  $1"; }

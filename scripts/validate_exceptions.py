@@ -12,7 +12,7 @@ An exception lets one workload of one tenant skip a policy for a limited time
    which is in the future and at most --max-days ahead,
 4. name its owner, its reason and its tenant in annotations, where the tenant has a
    file in tenants/,
-5. refer only to policies that exist in platform/policies,
+5. refer only to policies of the bulkhead-platform chart,
 6. be narrow: at least one match condition, so it cannot exempt a whole policy.
 
 --now fixes the current time (UTC, for example 2026-11-15T00:00:00Z), so that tests
@@ -43,11 +43,13 @@ MIN_REASON_LENGTH = 20
 
 
 def known_policies():
+    """Names of the ValidatingPolicies in the chart. The templates are not plain YAML until
+    Helm renders them, so the name is read as the first metadata name after the kind."""
     names = set()
-    for path in sorted((ROOT / "platform" / "policies").glob("*.yaml")):
-        for doc in yaml.safe_load_all(path.read_text()):
-            if isinstance(doc, dict) and doc.get("kind") == "ValidatingPolicy":
-                names.add(doc.get("metadata", {}).get("name"))
+    for path in sorted((ROOT / "charts" / "bulkhead-platform" / "templates").glob("*.yaml")):
+        match = re.search(r"^kind: ValidatingPolicy\nmetadata:\n  name: ([a-z0-9-]+)$", path.read_text(), re.MULTILINE)
+        if match:
+            names.add(match.group(1))
     return names
 
 
@@ -118,7 +120,7 @@ def check_document(doc, path, now, max_days, policies, tenants):
     for ref in refs:
         name = (ref or {}).get("name")
         if (ref or {}).get("kind") != "ValidatingPolicy" or name not in policies:
-            problems.append(f"spec.policyRefs: '{name}' is not a ValidatingPolicy in platform/policies")
+            problems.append(f"spec.policyRefs: '{name}' is not a ValidatingPolicy of the bulkhead-platform chart")
     if not spec.get("matchConditions"):
         problems.append("spec.matchConditions must narrow the exception to the workloads that need it")
     return problems

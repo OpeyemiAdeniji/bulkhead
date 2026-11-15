@@ -100,7 +100,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install the Kyverno CLI
         run: |
-          bash scripts/install-tools.sh "$HOME/.local/bin" kyverno
+          bash scripts/install-tools.sh "$HOME/.local/bin" kyverno helm
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Test the policies
         run: make policy-test

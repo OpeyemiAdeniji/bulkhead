@@ -1,7 +1,29 @@
 # Defaults for the tenant chart.
 # The tenant file (tenants/<name>.yaml) is passed in as extra values and supplies
-# schemaVersion, name, owner, costCentre, environment, size and access.
-#
+# schemaVersion, name, owner, costCentre, environment, size and access. Values that are the
+# same for every tenant of a cluster go in one file that is passed before the tenant file:
+#   helm template tenant-alpha charts/bulkhead-tenant -f cluster-values.yaml -f tenants/alpha.yaml
+# (docs/adr/0016-two-charts-configurable-per-cluster.md)
+
+# The namespace of a tenant is <namespacePrefix><name>. Platform namespaces must never start
+# with this prefix (docs/adr/0005-tenant-contract-yaml-json-schema.md).
+namespacePrefix: tenant-
+
+# The Pod Security Standard that every tenant namespace enforces: restricted or baseline.
+podSecurity:
+  level: restricted
+
+# Where pods may send DNS lookups. The defaults match CoreDNS and kube-dns on kind, kubeadm,
+# Amazon EKS, Google Kubernetes Engine and Azure Kubernetes Service. extraCIDRs is for DNS
+# that is not served by those pods, for example 169.254.20.10/32 for NodeLocal DNSCache.
+dns:
+  namespaceLabels:
+    kubernetes.io/metadata.name: kube-system
+  podLabels:
+    k8s-app: kube-dns
+  ports: [53]
+  extraCIDRs: []
+
 # The size tiers are design choices, not measurements. Medium is twice small and
 # large is four times small. A quota limits what a tenant may claim, not what it uses.
 sizes:
