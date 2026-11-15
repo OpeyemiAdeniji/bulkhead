@@ -99,10 +99,12 @@ Bulkhead is two Helm charts: `charts/bulkhead-platform`, installed once per clus
 
 ## Quick start (local demo on kind)
 
-You need Docker, bash, make, curl and Python 3. The tools are pinned to the versions that were measured, and every download is checked against its checksum.
+You need Docker, bash, make, curl, git, pipx and Python 3. The tools are pinned to the versions that were measured, and every download is checked against its checksum. Continuous integration runs this block as written on a fresh machine on every pull request (`scripts/readme-quickstart.sh`), so it cannot go stale.
 
 ```bash
+git clone https://github.com/OpeyemiAdeniji/bulkhead.git && cd bulkhead
 bash scripts/install-tools.sh        # kind, kubectl, Helm, kubeconform and the Kyverno CLI in ~/.local/bin
+export PATH="$HOME/.local/bin:$PATH"    # if ~/.local/bin is not on your PATH yet
 python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
 pipx install pre-commit && make setup   # git hooks, once per clone
 
