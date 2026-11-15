@@ -65,8 +65,12 @@ jobs:
         run: |
           bash scripts/install-tools.sh "$HOME/.local/bin" helm kubeconform
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: Lint and render the tenant chart
+      - name: Lint, render and schema-check both charts
         run: make chart-test
+      - name: Package the charts as a release would, and read the notes of the last release
+        run: |
+          bash scripts/package-charts.sh 0.0.0-ci dist
+          bash scripts/release-notes.sh 0.2.0 > /dev/null
 
   isolation:
     name: isolation
