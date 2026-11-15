@@ -46,7 +46,7 @@ Done when: a person who has never seen the project installs it on a cluster of t
 ### Phase 2: the checker (v0.4)
 
 - Go module, CLI and kubectl plugin, built with `client-go`.
-- The check catalogue, ported from the 38 checks of the isolation suite and extended with Pod Security (a privileged pod is refused) and egress to the internet. Every check has an ID, a pair, a statement of what it proves and does not prove, and a fix.
+- The check catalogue, ported from the 41 checks of the isolation suite and extended with Pod Security (a privileged pod is refused) and egress to the internet. Every check has an ID, a pair, a statement of what it proves and does not prove, and a fix.
 - Safety: labelled test objects, clean-up on exit and on interruption, a read-only mode, a dry-run that lists what would be created, and a timeout for every check.
 - Reports: table, JSON with a published schema, JUnit, SARIF and HTML (with a source by destination matrix for the network checks), and optionally `PolicyReport` objects in the cluster. Exit codes that continuous integration can use.
 - Every verdict names the layer that decided it, runs as the tenant's own identity (confirmed with a `SelfSubjectReview`), and maps to the archived multi-tenancy benchmark IDs and the CIS benchmark where they overlap.

@@ -1,6 +1,10 @@
 # A custom role, not the built-in admin or edit role. Those allow a tenant to change
 # NetworkPolicy objects, so a tenant could remove its own default-deny policy.
 # This role can read quotas, limits and network policies, but not change them.
+# Endpoints are read-only: writing them lets a tenant point a service at addresses outside its
+# namespace (CVE-2021-25740), which is why Kubernetes removed the right from its built-in roles.
+# Kubernetes fills the endpoints of a service by itself. Pod logs and exec are not changed with
+# update or delete, so they get only the verbs that they use.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -10,8 +14,17 @@ metadata:
     {{- include "tenant.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
-    resources: [pods, pods/log, pods/exec, pods/portforward, services, endpoints, configmaps, secrets, persistentvolumeclaims, serviceaccounts]
+    resources: [pods, services, configmaps, secrets, persistentvolumeclaims, serviceaccounts]
     verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [pods/log, endpoints]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods/exec, pods/portforward]
+    verbs: [get, create]
+  - apiGroups: [discovery.k8s.io]
+    resources: [endpointslices]
+    verbs: [get, list, watch]
   - apiGroups: [apps]
     resources: [deployments, replicasets, statefulsets, daemonsets]
     verbs: [get, list, watch, create, update, patch, delete]
