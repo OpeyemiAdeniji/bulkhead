@@ -247,3 +247,18 @@ Method: on the local cluster (Kyverno v1.19.2, one admission controller replica)
 | Tenant admin scales, patches or deletes the admission deployment or pod, or deletes the webhook configuration | 4 requests, 4 `Forbidden` |
 
 Not tested: a Helm upgrade, a node drain, two replicas, and whether Kyverno's reports show a workload that was created during a stop.
+
+## CI job times across all runs (v0.2)
+
+Method: on 2026-11-15, every run of the `CI` workflow was listed with the GitHub API (`actions/runs`, 69 runs since 2026-10-21), and for each run the `isolation` and `policy-live` jobs were read from `actions/runs/<id>/jobs`. A job's time is `completed_at` minus `started_at`, so it does not include the time it waited for a runner. The jobs of two runs could not be read because the API requests timed out (runs 43655553784 and 41050796181). Runs on pull requests and on `main` are counted together.
+
+| Job | Successful runs | Fastest | Median | Slowest |
+|---|---|---|---|---|
+| `isolation` | 47 | 126 s | 156 s | 195 s (run 43650883055) |
+| `policy-live` | 28 | 126 s | 142 s | 299 s (run 41518643682) |
+
+Failed runs that were read: `isolation` twice (runs 40332877934 and 40337348572, the memory check of v0.1, see `docs/runbooks/isolation-job-failed.md`), and `policy-live` once (run 41517621199, the policy apply ran before the Kyverno webhook answered, fixed in pull request 20). The run of pull request 30 that failed because `make kyverno-up` could not apply two policies is one of the two runs that could not be read.
+
+The slowest `policy-live` run (299 s) is the one that pull request 20 already noted: its steps ended after about 149 s, and where the rest went is not known.
+
+This replaces the range in "CI runs of the isolation job (v0.1)" above, which was read from five runs.

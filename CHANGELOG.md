@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SECURITY.md`, and Dependabot for GitHub Actions and Python dependencies.
 
 ### Changed
+- The README describes v0.2: the guardrails, exceptions, outage behaviour, every suite and break test, the new make targets, and CI job times measured over all runs (`isolation` 126 s to 195 s in 47 runs, `policy-live` 126 s to 299 s in 28 runs), which replace the range from five runs.
 - **The project is renamed to Bulkhead** (ADR 0013). The repository is `OpeyemiAdeniji/bulkhead`, and GitHub redirects the old URLs. The label on platform-managed objects, which the policies select on, is now `app.kubernetes.io/managed-by: bulkhead`, so a cluster set up before the rename must apply its tenants again. The local kind cluster is named `bulkhead` (context `kind-bulkhead`).
 - The roadmap adds AWS Emulator: for testing the EKS infrastructure code in continuous integration, and as an optional step in the tenant CI template. It is never used as evidence for an isolation claim.
 - GitHub Actions are pinned to commit SHAs, and `actions/checkout` and `actions/setup-python` move to their current major versions (the old ones ran on the deprecated Node 20).
