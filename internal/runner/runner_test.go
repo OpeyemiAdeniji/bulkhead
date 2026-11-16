@@ -71,6 +71,21 @@ func TestASkippedSubjectOfThePairDoesNotSpoilIt(t *testing.T) {
 	}
 }
 
+func TestThePairOfTheSameSubjectDecides(t *testing.T) {
+	rs := ApplyPairs([]Result{
+		{Check: "QTA-08", Status: Fail, Subject: "tenant-a"},
+		{Check: "QTA-08", Status: Pass, Subject: "tenant-b"},
+		{Check: "QTA-09", Status: Pass, Subject: "tenant-a"},
+		{Check: "QTA-09", Status: Pass, Subject: "tenant-b"},
+	})
+	if rs[2].Status != Inconclusive {
+		t.Errorf("tenant-a's pair failed: %+v", rs[2])
+	}
+	if rs[3].Status != Pass {
+		t.Errorf("tenant-b's pair passed, so its refusal counts: %+v", rs[3])
+	}
+}
+
 func TestReadOnlySkipsActiveChecks(t *testing.T) {
 	called := false
 	register(t, "NET-01", func(context.Context, *Env, catalog.Check) []Result { called = true; return nil })

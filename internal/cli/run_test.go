@@ -63,13 +63,14 @@ func fakeCluster(t *testing.T, lie bool, objects ...runtime.Object) *fake.Client
 
 func TestCheckRunsAgainstAFakeCluster(t *testing.T) {
 	fakeCluster(t, false)
-	code, out, errOut := run(t, "check", "--tenant", "tenant-alpha", "--tenant", "tenant-bravo")
+	// Read-only: the fake cluster's pods never start, so the active checks are left to their own tests.
+	code, out, errOut := run(t, "check", "--tenant", "tenant-alpha", "--tenant", "tenant-bravo", "--read-only")
 	// The fake identities may do anything, so the checks between tenants fail: exit code 1.
 	if code != exitcode.ChecksFailed {
 		t.Fatalf("code %d, stderr %q", code, errOut)
 	}
-	for _, want := range []string{"context fake", "tenant-alpha: admin bulkhead-check (groups alpha-admins), no viewer", "confirmed with the API server",
-		"ACC-02  fail", "not-implemented", "Clean-up: removed 0 test objects"} {
+	for _, want := range []string{"context fake", "(read-only)", "tenant-alpha: admin bulkhead-check (groups alpha-admins), no viewer", "confirmed with the API server",
+		"ACC-02  fail", "active check, not run in read-only mode"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output misses %q:\n%s", want, out)
 		}

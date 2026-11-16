@@ -40,9 +40,9 @@ One item of this package waits for the first active check, because only then doe
 - [x] An end-to-end test that interrupts a run on kind while its test pods exist, and finds nothing left (from work package 2). The run stops with exit code 3.
 - [x] Test pods with placement on two nodes, readiness waits (a TCP probe for servers, so ready means listening), clear errors for pods that cannot start (for example ImagePullBackOff), and checks across nodes skipped when the cluster has only one schedulable node. The pods are created as the tenant admin, through the sandbox.
 - [x] NET-01 to NET-06 (network), in both directions between every pair of tenants, on the same node and across nodes. On kind: 16 of 16. Without network policies, exactly the 10 blocked results fail.
-- [ ] RES-01 to RES-05 (noisy neighbour), measured from cgroup v2.
-- [ ] QTA-01, QTA-02, QTA-08 and QTA-09 (the quota with real pods), reading the tenant's quota and limit range instead of fixed numbers.
-- [x] Results of a "blocked" check are only valid when its pair passed: otherwise they are reported as inconclusive and fail the run. The pairs of selected checks are added to the run.
+- [x] RES-01 to RES-05 (noisy neighbour), measured from cgroup v2. On kind: the CPU hog used 0.50 CPUs against its limit of 0.50 and was throttled; the memory hog was OOMKilled; the other tenant's server on the same node kept answering without a restart.
+- [x] QTA-01, QTA-02, QTA-08 and QTA-09 (the quota with real pods), reading the tenant's quota instead of fixed numbers. The test pods of earlier categories are removed first, and the run waits until the quota no longer counts them. QTA-08 creates at most 25 pods per tenant and skips a larger free pod count.
+- [x] Results of a "blocked" check are only valid when its pair passed: otherwise they are reported as inconclusive and fail the run. When the pair has a result for the same tenant, that result decides. The pairs of selected checks are added to the run.
 
 ## 5. Reports and exit codes
 

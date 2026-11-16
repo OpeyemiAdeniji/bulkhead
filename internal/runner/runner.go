@@ -183,14 +183,21 @@ func runOne(ctx context.Context, env *Env, c catalog.Check, f Func, timeout time
 	return rs
 }
 
-// ApplyPairs marks a passed blocked check inconclusive unless its pair passed: at least one
-// result of the pair is a pass, and none is anything but a pass or skipped. A subject the pair
-// skipped (for example a tenant without a viewer) does not spoil the others, but a pair that
-// passed nowhere makes the blocked result inconclusive.
+// ApplyPairs marks a passed blocked check inconclusive unless its pair passed.
+//
+// When the pair has a result for the same subject (for example the same tenant), that result
+// decides: tenant B's refusal counts when tenant B's pair passed, whatever happened in tenant A.
+// Otherwise the pair as a whole decides: at least one of its results is a pass, and none is
+// anything but a pass or skipped. A subject the pair skipped (for example a tenant without a
+// viewer) does not spoil the others, but a pair that passed nowhere does.
 func ApplyPairs(results []Result) []Result {
 	passed := map[string]bool{}
 	spoiled := map[string]bool{}
+	bySubject := map[[2]string]Status{}
 	for _, r := range results {
+		if r.Subject != "" {
+			bySubject[[2]string{r.Check, r.Subject}] = r.Status
+		}
 		switch r.Status {
 		case Pass:
 			passed[r.Check] = true
@@ -206,6 +213,13 @@ func ApplyPairs(results []Result) []Result {
 	for i, r := range results {
 		c, ok := catalog.Get(r.Check)
 		if !ok || c.Expect != catalog.Blocked || r.Status != Pass {
+			continue
+		}
+		if st, same := bySubject[[2]string{c.Pair, r.Subject}]; same && r.Subject != "" {
+			if st != Pass {
+				results[i].Status = Inconclusive
+				results[i].Message = fmt.Sprintf("blocked as expected, but its pair %s did not pass for %s, so this result does not count", c.Pair, r.Subject)
+			}
 			continue
 		}
 		if !pairOK[c.Pair] {

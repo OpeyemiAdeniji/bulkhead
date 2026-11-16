@@ -62,13 +62,14 @@ expect 0 "a dry run sends nothing and lists its requests" \
   check "${TENANTS[@]}" --dry-run
 
 # A run confirms every tenant identity with the API server through impersonation, and every
-# implemented check passes on the isolated cluster. The network checks start 8 test pods
-# (a server and a client per tenant on each of two nodes), and clean-up removes them.
-expect 0 "a run confirms each identity, and every implemented check passes" \
+# check of the basic level passes on the isolated cluster. The network, noisy-neighbour and
+# quota checks start 20 test pods along the way, and the run removes them.
+expect 0 "a run confirms each identity, and every check passes" \
   "Every identity was confirmed with the API server" "tenant-bravo: admin bulkhead-check (groups bravo-admins)" \
   "ACC-02 pass" "GRD-05 pass" "ADM-02 pass tenant-alpha" "refused by pod-security" "refused by quota (tenant-quota)" \
   "refused by limit-range" "NET-04 pass tenant-alpha -> tenant-bravo" "blocked: the connection timed out" \
-  "0 fail" "Clean-up: removed 8 test objects" -- \
+  "RES-03 pass" "OOMKilled" "QTA-08 pass tenant-alpha" "filled the pod count" \
+  "0 fail" "Clean-up: removed 20 test objects" -- \
   check "${TENANTS[@]}"
 
 expect 0 "a read-only run skips the active checks" \
@@ -104,6 +105,15 @@ expect 1 "without network policies, exactly NET-04, NET-05 and NET-06 fail" \
   "NET-01 pass" "NET-02 pass" "NET-03 pass" "NET-04 fail" "NET-05 fail" "NET-06 fail" \
   "the server answered, but this traffic must be blocked" " pass, 10 fail" -- \
   check "${TENANTS[@]}" --category network --level basic,hardened
+make tenants-apply > /dev/null
+
+# Without its resource quota, tenant alpha may claim anything and open node ports and load
+# balancers: alpha's quota checks fail, and bravo's still pass.
+k -n tenant-alpha delete resourcequota tenant-quota > /dev/null
+expect 1 "without a quota, exactly the quota checks of that tenant fail" \
+  "QTA-01 fail tenant-alpha no resource quota limits requests.cpu" "QTA-04 fail tenant-alpha" "QTA-05 fail tenant-alpha" \
+  "QTA-08 fail tenant-alpha" "QTA-01 pass tenant-bravo" "QTA-04 pass tenant-bravo" "QTA-09 pass tenant-bravo" -- \
+  check "${TENANTS[@]}" --category quota
 make tenants-apply > /dev/null
 
 echo "== interrupt: Ctrl+C while test pods exist"
