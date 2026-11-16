@@ -2,8 +2,8 @@ apiVersion: v2
 name: bulkhead-platform
 description: The cluster-wide part of Bulkhead - Kyverno policies that guard tenant namespaces, the namespace for expiring policy exceptions, and the permission that lets Kyverno delete them. Requires Kyverno 1.19 or newer, which this chart does not install.
 type: application
-version: 0.3.0-dev
-appVersion: "0.3.0-dev"
+version: 0.4.0-dev
+appVersion: "0.4.0-dev"
 kubeVersion: ">=1.30.0-0"
 home: https://github.com/OpeyemiAdeniji/bulkhead
 sources:
