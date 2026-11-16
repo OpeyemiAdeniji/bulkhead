@@ -6,14 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- **Tenant DNS failed on GKE with NodeLocal DNSCache**, found in the first cloud run. Queries to the DNS service are answered there by pods labelled `k8s-app: node-local-dns`, which the tenant's DNS policy did not allow. The tenant chart has a new value `dns.extraPodLabels`, with that label by default. On clusters without those pods, the entry matches nothing. The install guide's earlier advice for GKE (`extraCIDRs: ["169.254.20.10/32"]`) was wrong for this setup and is removed.
-- `make tenants-apply` honours `KUBE_CONTEXT`, as the test suites do. It always applied to the kind cluster, although `docs/install.md` told people to use it on their own cluster.
+## [0.3.0] - 2026-11-16
 
 ### Added
 - **First cloud run, on GKE Standard** (Kubernetes 1.36, Dataplane V2). With the signed `0.3.0-rc.2` platform chart from the registry and the DNS fix above: 41 of 41 isolation checks and 29 of 29 live policy checks. With the network policies of both tenants deleted, the eight checks that tenants cannot reach each other failed. Results and the problems of the test machine are in `docs/measurements.md`.
 - **The README quick start runs in CI as written.** `scripts/readme-quickstart.sh` takes the bash block under the Quick start heading and runs it line by line on a fresh runner (job `quickstart`). The block now starts with the clone and puts `~/.local/bin` on the `PATH`, so it works on a machine that has nothing set up.
 - **Tests on three Kubernetes versions and two network plugins.** `make cluster-up` takes `K8S_VERSION` (1.37.0, 1.36.4 or 1.35.8, node images pinned by digest in `examples/kind/node-images`) and `CNI` (`calico` or `cilium`, Cilium pinned in `examples/kind/cilium-version`). A new `compatibility` CI job runs the isolation and live policy suites on 1.36 with Calico, and on 1.35 and 1.37 with Cilium. Calico 3.33.0 does not install on Kubernetes 1.35 (its manifests create `MutatingAdmissionPolicy` objects of `admissionregistration.k8s.io/v1`), so `make cluster-up` refuses that combination with a clear message. Locally on Cilium 1.20.4: 41 of 41 isolation checks, 29 of 29 live policy checks, and with the network policies deleted exactly the eight network checks that must be blocked failed.
+- **Signed chart releases** (ADR 0017). A version tag runs `.github/workflows/release.yml`, which packages both charts, pushes them to `oci://ghcr.io/opeyemiadeniji/charts`, signs them with cosign without a key, attaches a build provenance attestation, verifies the signatures, and creates the GitHub release from the changelog. A tag with a suffix makes a pre-release. `scripts/package-charts.sh` and `scripts/release-notes.sh` do the packaging and the notes, and the `chart` CI job packages both charts on every pull request. `docs/install.md` shows how to install from the registry and how to verify a chart.
+- `docs/install.md`: installing Bulkhead on Amazon EKS, Google Kubernetes Engine, Azure Kubernetes Service and other clusters. Followed on GKE Standard; the EKS and AKS parts are written from the providers' documentation and not yet run.
 
 ### Changed
 - The kind node image is now pinned by digest.
@@ -23,9 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `make policy-test` tests the rendered platform chart, and `make chart-test` also lints, renders and schema-checks the platform chart (Kyverno kinds through the CRDs catalog) and checks that the values schemas refuse wrong values.
 - `make tenants-apply` takes cluster-wide tenant values from `TENANT_VALUES`.
 
-### Added
-- **Signed chart releases** (ADR 0017). A version tag runs `.github/workflows/release.yml`, which packages both charts, pushes them to `oci://ghcr.io/opeyemiadeniji/charts`, signs them with cosign without a key, attaches a build provenance attestation, verifies the signatures, and creates the GitHub release from the changelog. A tag with a suffix makes a pre-release. `scripts/package-charts.sh` and `scripts/release-notes.sh` do the packaging and the notes, and the `chart` CI job packages both charts on every pull request. `docs/install.md` shows how to install from the registry and how to verify a chart.
-- `docs/install.md`: installing Bulkhead on Amazon EKS, Google Kubernetes Engine, Azure Kubernetes Service and other clusters. Written from the providers' documentation and not yet run on them.
+### Fixed
+- **Tenant DNS failed on GKE with NodeLocal DNSCache**, found in the first cloud run. Queries to the DNS service are answered there by pods labelled `k8s-app: node-local-dns`, which the tenant's DNS policy did not allow. The tenant chart has a new value `dns.extraPodLabels`, with that label by default. On clusters without those pods, the entry matches nothing. The install guide's earlier advice for GKE (`extraCIDRs: ["169.254.20.10/32"]`) was wrong for this setup and is removed.
+- `make tenants-apply` honours `KUBE_CONTEXT`, as the test suites do. It always applied to the kind cluster, although `docs/install.md` told people to use it on their own cluster.
 
 ## [0.2.0] - 2026-11-15
 
@@ -100,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `make setup` and `CONTRIBUTING.md` now use pre-commit installed with pipx, not a virtualenv.
 - The YAML hook skips Helm templates, which are not valid YAML until they are rendered.
 
-[Unreleased]: https://github.com/OpeyemiAdeniji/bulkhead/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/OpeyemiAdeniji/bulkhead/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/OpeyemiAdeniji/bulkhead/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/OpeyemiAdeniji/bulkhead/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/OpeyemiAdeniji/bulkhead/releases/tag/v0.1.0
