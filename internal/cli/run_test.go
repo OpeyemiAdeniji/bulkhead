@@ -64,11 +64,12 @@ func fakeCluster(t *testing.T, lie bool, objects ...runtime.Object) *fake.Client
 func TestCheckRunsAgainstAFakeCluster(t *testing.T) {
 	fakeCluster(t, false)
 	code, out, errOut := run(t, "check", "--tenant", "tenant-alpha", "--tenant", "tenant-bravo")
-	// No check is implemented yet, so nothing ran: exit code 3.
-	if code != exitcode.Error {
+	// The fake identities may do anything, so the checks between tenants fail: exit code 1.
+	if code != exitcode.ChecksFailed {
 		t.Fatalf("code %d, stderr %q", code, errOut)
 	}
-	for _, want := range []string{"context fake", "tenant-alpha: admin bulkhead-check (groups alpha-admins), no viewer", "confirmed with the API server", "not-implemented", "Clean-up: removed 0 test objects"} {
+	for _, want := range []string{"context fake", "tenant-alpha: admin bulkhead-check (groups alpha-admins), no viewer", "confirmed with the API server",
+		"ACC-02  fail", "not-implemented", "Clean-up: removed 0 test objects"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output misses %q:\n%s", want, out)
 		}
@@ -93,8 +94,13 @@ func TestDryRunSendsNothingAndListsTheRequests(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &rep); err != nil {
 		t.Fatal(err)
 	}
-	if rep.Run.Mode != "dry-run" || len(rep.Requests) != 2 || rep.Requests[0].Kind != "SelfSubjectReview" || rep.Cleanup != nil {
-		t.Errorf("unexpected report: %+v", rep)
+	if rep.Run.Mode != "dry-run" || len(rep.Requests) < 3 || rep.Requests[0].Kind != "SelfSubjectReview" || rep.Requests[1].Kind != "SelfSubjectReview" || rep.Cleanup != nil {
+		t.Fatalf("unexpected report: mode %s, %d requests, cleanup %v", rep.Run.Mode, len(rep.Requests), rep.Cleanup)
+	}
+	for _, r := range rep.Results {
+		if r.Status != "planned" && r.Status != "not-implemented" {
+			t.Errorf("%s: %s in a dry run", r.Check, r.Status)
+		}
 	}
 }
 

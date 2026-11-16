@@ -73,6 +73,9 @@ func Connect(o Options) (*Cluster, error) {
 		return nil, fmt.Errorf("build the client configuration for context %q: %w", ctxName, err)
 	}
 	cfg.UserAgent = "bulkhead-check"
+	// Deprecation warnings (for example for Endpoints, which GRD-07 writes on purpose) would mix
+	// with the report. The checks report what matters themselves.
+	cfg.WarningHandler = rest.NoWarnings{}
 	client, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
