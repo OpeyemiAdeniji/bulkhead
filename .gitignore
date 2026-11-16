@@ -33,6 +33,7 @@ venv/
 .vault_pass
 
 # Build and output
+/bin/
 dist/
 build/
 out/

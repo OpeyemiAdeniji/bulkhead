@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The start of `bulkhead check`**, the tenant isolation checker (ADR 0012), in this repository as one Go module (ADR 0018). `bulkhead version` prints the version, and `bulkhead check --list` prints the catalogue of 39 checks as a table or as JSON, filtered by category and level. Every check has an ID, a level, a mode (read-only or active), the expected result, the "must work" check it is paired with, what it proves and does not prove, how it is run, and the fix, and unit tests enforce those rules. Running the checks against a cluster is not built yet. The work is tracked in `docs/phase-2-checklist.md`.
+- CI job `checker`: `gofmt`, `go vet`, tests with the race detector, `govulncheck`, `golangci-lint`, and a build that runs the binary. Dependabot watches the Go modules. `make checker-build` and `make checker-test` run the same locally.
+
 ## [0.3.0] - 2026-11-16
 
 ### Added

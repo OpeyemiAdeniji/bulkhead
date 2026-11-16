@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help setup lint secrets hooks-update validate validate-exceptions test-contract test-exceptions chart-test test-isolation cluster-up cluster-down tenants-apply kyverno-up policy-test test-policy-live
+.PHONY: help setup lint secrets hooks-update validate validate-exceptions test-contract test-exceptions chart-test test-isolation cluster-up cluster-down tenants-apply kyverno-up policy-test test-policy-live checker-build checker-test
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -53,3 +53,11 @@ policy-test: ## Test the Kyverno policies offline, and check that the tests can 
 
 test-policy-live: ## Test the Kyverno policies on the local cluster (set WITH_EXPIRY=1 to test expiry)
 	bash tests/policy-live/run.sh
+
+checker-build: ## Build the checker into bin/bulkhead
+	go build -o bin/bulkhead ./cmd/bulkhead
+
+checker-test: ## Format check, vet and unit tests of the checker (CI also runs the race detector, govulncheck and golangci-lint)
+	@unformatted="$$(gofmt -l .)"; if [ -n "$$unformatted" ]; then echo "run gofmt -w on:"; echo "$$unformatted"; exit 1; fi
+	go vet ./...
+	go test -count=1 ./...
