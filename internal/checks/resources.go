@@ -241,6 +241,11 @@ func res03(ctx context.Context, env *runner.Env, c catalog.Check, x *resFixture)
 		return errResult(subject, err)
 	case reason == "OOMKilled":
 		return runner.Result{Status: runner.Pass, Subject: subject, Layer: LayerResourceLimits, Message: fmt.Sprintf("killed at its memory limit (OOMKilled, exit code %d)", code)}
+	case code == 137:
+		// SIGKILL. The runtime sometimes handles the exit before the out-of-memory event and then
+		// records "Error" instead of "OOMKilled" (seen on a CI runner with containerd 2.3.4).
+		return runner.Result{Status: runner.Pass, Subject: subject, Layer: LayerResourceLimits,
+			Message: fmt.Sprintf("killed with SIGKILL (exit code 137); the runtime recorded %q instead of OOMKilled, which happens when it handles the exit before the out-of-memory event", reason)}
 	}
 	return runner.Result{Status: runner.Fail, Subject: subject, Message: fmt.Sprintf("it ended with %q (exit code %d) instead of being killed at its limit", reason, code)}
 }

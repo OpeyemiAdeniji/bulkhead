@@ -93,7 +93,11 @@ func (s *activeSim) env(t *testing.T) *runner.Env {
 			s.mu.Unlock()
 		}
 		if strings.HasSuffix(p.Name, "memory-hog") && s.memEnd != "" {
-			cs.State.Terminated = &corev1.ContainerStateTerminated{Reason: s.memEnd, ExitCode: 137}
+			code := s.memCode
+			if code == 0 {
+				code = 137
+			}
+			cs.State.Terminated = &corev1.ContainerStateTerminated{Reason: s.memEnd, ExitCode: code}
 		}
 		p.Status.ContainerStatuses = []corev1.ContainerStatus{cs}
 		return true, p, nil
@@ -155,7 +159,10 @@ func TestBrokenLimitsFailTheirChecks(t *testing.T) {
 	}{
 		{"no CPU limit", &activeSim{hogCPUs: 2, memEnd: "OOMKilled", podLimit: 10}, map[string]runner.Status{"RES-01": runner.Fail, "RES-02": runner.Fail, "RES-03": runner.Pass}},
 		{"hog starved by a busy node", &activeSim{hogCPUs: 0.1, throttled: true, memEnd: "OOMKilled", podLimit: 10}, map[string]runner.Status{"RES-01": runner.Error}},
-		{"memory hog not killed at its limit", &activeSim{hogCPUs: 0.5, throttled: true, memEnd: "Error", podLimit: 10}, map[string]runner.Status{"RES-03": runner.Fail, "RES-01": runner.Pass}},
+		{"memory hog ended by itself", &activeSim{hogCPUs: 0.5, throttled: true, memEnd: "Error", memCode: 1, podLimit: 10}, map[string]runner.Status{"RES-03": runner.Fail, "RES-01": runner.Pass}},
+		{"memory hog never stopped", &activeSim{hogCPUs: 0.5, throttled: true, podLimit: 10}, map[string]runner.Status{"RES-03": runner.Error}},
+		// SIGKILL without the OOMKilled label, as seen on a CI runner: still a pass.
+		{"SIGKILL recorded as Error", &activeSim{hogCPUs: 0.5, throttled: true, memEnd: "Error", podLimit: 10}, map[string]runner.Status{"RES-03": runner.Pass}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
