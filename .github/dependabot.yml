@@ -14,6 +14,16 @@ updates:
       actions:
         patterns: ["*"]
 
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+    groups:
+      go:
+        patterns: ["*"]
+
   - package-ecosystem: pip
     directory: /
     schedule:

@@ -1,0 +1,23 @@
+# golangci-lint v2 configuration for the checker (the version is pinned in .github/workflows/ci.yml).
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - errorlint     # errors are compared with errors.Is and errors.As, so wrapping keeps working
+    - gocritic
+    - misspell
+    - revive
+    - unconvert
+  settings:
+    misspell:
+      locale: UK
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/OpeyemiAdeniji/bulkhead

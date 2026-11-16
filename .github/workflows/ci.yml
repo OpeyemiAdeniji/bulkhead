@@ -72,6 +72,38 @@ jobs:
           bash scripts/package-charts.sh 0.0.0-ci dist
           bash scripts/release-notes.sh 0.2.0 > /dev/null
 
+  # The checker, bulkhead check (docs/adr/0018-checker-in-this-repository.md).
+  checker:
+    name: checker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Go version, as switched to by the toolchain line of go.mod
+        run: go version
+      - name: Formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then echo "run gofmt -w on:"; echo "$unformatted"; exit 1; fi
+      - name: Vet
+        run: go vet ./...
+      - name: Tests with the race detector
+        run: go test -race -count=1 ./...
+      - name: Known vulnerabilities in the code and its dependencies
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.15.0
+      - name: Build and run the binary
+        run: |
+          make checker-build
+          ./bin/bulkhead version
+          ./bin/bulkhead check --list > /dev/null
+          set +e; ./bin/bulkhead check --list --category nope > /dev/null 2>&1; code=$?; set -e
+          [ "$code" -eq 2 ] || { echo "a usage error must exit with 2, got $code"; exit 1; }
+
   isolation:
     name: isolation
     runs-on: ubuntu-latest

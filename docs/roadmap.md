@@ -46,6 +46,8 @@ Done when: a person who has never seen the project installs it on a cluster of t
 
 ### Phase 2: the checker (v0.4)
 
+Every item below is broken into tracked work in [phase-2-checklist.md](phase-2-checklist.md). The checker lives in this repository ([ADR 0018](adr/0018-checker-in-this-repository.md)).
+
 - Go module, CLI and kubectl plugin, built with `client-go`.
 - The check catalogue, ported from the 41 checks of the isolation suite and extended with Pod Security (a privileged pod is refused) and egress to the internet. Every check has an ID, a pair, a statement of what it proves and does not prove, and a fix.
 - Safety: labelled test objects, clean-up on exit and on interruption, a read-only mode, a dry-run that lists what would be created, and a timeout for every check.
@@ -133,8 +135,6 @@ A checklist for the whole project. Each item is either done, planned in a phase 
 
 ## Open decisions
 
-- **The name.** Candidates and their checks are in the pull request that adds this file. The repository, the chart, the checker binary and the website use the same name.
-- **Whether the checker lives in this repository or its own.** Its own repository is the usual choice for a tool with its own releases. Decided at the start of Phase 2.
 - **How success is measured after launch:** for example installs of the chart, downloads of the checker, outside contributors, and issues from real clusters. Decided before the launch.
 
 ## What is not planned
