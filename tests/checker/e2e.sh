@@ -62,11 +62,13 @@ expect 0 "a dry run sends nothing and lists its requests" \
   check "${TENANTS[@]}" --dry-run
 
 # A run confirms every tenant identity with the API server through impersonation, and every
-# implemented check passes on the isolated cluster. The active checks are not implemented yet.
+# implemented check passes on the isolated cluster. The network checks start 8 test pods
+# (a server and a client per tenant on each of two nodes), and clean-up removes them.
 expect 0 "a run confirms each identity, and every implemented check passes" \
   "Every identity was confirmed with the API server" "tenant-bravo: admin bulkhead-check (groups bravo-admins)" \
   "ACC-02 pass" "GRD-05 pass" "ADM-02 pass tenant-alpha" "refused by pod-security" "refused by quota (tenant-quota)" \
-  "refused by limit-range" "Clean-up: removed 0 test objects" -- \
+  "refused by limit-range" "NET-04 pass tenant-alpha -> tenant-bravo" "blocked: the connection timed out" \
+  "0 fail" "Clean-up: removed 8 test objects" -- \
   check "${TENANTS[@]}"
 
 expect 0 "a read-only run skips the active checks" \
@@ -93,6 +95,38 @@ k -n tenant-alpha delete rolebinding break-admin > /dev/null
 
 expect 0 "with the protections back, the same checks pass" "0 fail" -- \
   check "${TENANTS[@]}" --read-only --category access,guardrails
+
+# Without network policies, traffic between tenants and to the internet flows: exactly the
+# "blocked" network checks fail (8 cross-tenant paths and 2 internet probes), and the "must work" ones pass.
+k -n tenant-alpha delete networkpolicy --all > /dev/null
+k -n tenant-bravo delete networkpolicy --all > /dev/null
+expect 1 "without network policies, exactly NET-04, NET-05 and NET-06 fail" \
+  "NET-01 pass" "NET-02 pass" "NET-03 pass" "NET-04 fail" "NET-05 fail" "NET-06 fail" \
+  "the server answered, but this traffic must be blocked" " pass, 10 fail" -- \
+  check "${TENANTS[@]}" --category network --level basic,hardened
+make tenants-apply > /dev/null
+
+echo "== interrupt: Ctrl+C while test pods exist"
+"$BIN" check "${TENANTS[@]}" --category network > "$out" 2>&1 &
+pid=$!
+for _ in $(seq 1 120); do
+  [ "$(leftovers)" -gt 0 ] && break
+  sleep 1
+done
+if [ "$(leftovers)" -eq 0 ]; then
+  fail "the run created no test pods to interrupt"
+else
+  sleep 2
+  kill -INT "$pid"
+  wait "$pid"
+  code=$?
+  if [ "$code" -eq 3 ] && grep -q "interrupted" "$out" && [ "$(leftovers)" -eq 0 ]; then
+    pass "after Ctrl+C the run stops with exit code 3 and removes its test pods"
+  else
+    fail "after Ctrl+C: exit code $code, $(leftovers) test objects left"
+    sed 's/^/      /' "$out" | tail -8
+  fi
+fi
 
 expect 2 "a system namespace is refused" "system namespace" -- check --context "$CONTEXT" --tenant kube-system
 expect 3 "a namespace that does not exist is reported" "does not exist" -- check --context "$CONTEXT" --tenant tenant-nope
