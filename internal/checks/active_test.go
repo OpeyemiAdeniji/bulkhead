@@ -27,6 +27,7 @@ type activeSim struct {
 	hogCPUs    float64
 	throttled  bool
 	memEnd     string // "OOMKilled", "Error" or "" (still running)
+	memCode    int32  // the exit code of the memory hog; 0 means 137
 	podLimit   int64
 	defaultCPU string // the limit range default request; "" means no defaults
 
