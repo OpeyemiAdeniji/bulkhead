@@ -15,6 +15,7 @@ import (
 	"github.com/OpeyemiAdeniji/bulkhead/internal/checks" // also registers the implemented checks
 	"github.com/OpeyemiAdeniji/bulkhead/internal/exitcode"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/kube"
+	"github.com/OpeyemiAdeniji/bulkhead/internal/report"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/runner"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/sandbox"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/tenant"
@@ -37,6 +38,8 @@ type checkOptions struct {
 	tenants      tenant.Options
 	readOnly     bool
 	dryRun       bool
+	reportSpecs  []string
+	reports      []reportFile
 	timeout      time.Duration
 	checkTimeout time.Duration
 }
@@ -65,7 +68,8 @@ func newCheck() *cobra.Command {
 	}
 	f := cmd.Flags()
 	f.BoolVar(&o.list, "list", false, "list the checks instead of running them")
-	f.StringVarP(&o.output, "output", "o", "table", "output format: table or json")
+	f.StringVarP(&o.output, "output", "o", "table", "output format on stdout: "+strings.Join(report.Formats, ", ")+" (table or json for --list)")
+	f.StringArrayVar(&o.reportSpecs, "report", nil, "also write the report to a file, as FORMAT=PATH (repeat), for example json=report.json or junit=junit.xml")
 	f.StringSliceVar(&o.categories, "category", nil, "only these categories (repeat or separate with commas)")
 	f.StringSliceVar(&o.levels, "level", nil, "only these levels: basic, hardened, research (default: basic for a run, all for --list)")
 	f.StringSliceVar(&o.ids, "id", nil, "only these checks, for example NET-04 (their pairs are added)")
@@ -82,8 +86,15 @@ func newCheck() *cobra.Command {
 }
 
 func (o *checkOptions) run(ctx context.Context, w io.Writer) error {
-	if o.output != "table" && o.output != "json" {
-		return exitcode.Usagef("unknown output %q (known: table, json)", o.output)
+	if o.list && o.output != "table" && o.output != "json" {
+		return exitcode.Usagef("unknown output %q for --list (known: table, json)", o.output)
+	}
+	if !report.ValidFormat(o.output) {
+		return exitcode.Usagef("unknown output %q (known: %s)", o.output, strings.Join(report.Formats, ", "))
+	}
+	var err error
+	if o.reports, err = parseReportFiles(o.reportSpecs); err != nil {
+		return err
 	}
 	if o.list {
 		selected, err := o.selected(false)
@@ -119,7 +130,8 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 	ctx, cancel := context.WithTimeout(ctx, o.timeout)
 	defer cancel()
 
-	rep := report{Run: runInfo{Context: cluster.Context, Server: cluster.Server}}
+	rep := report.New(selected)
+	rep.Run = report.Run{Context: cluster.Context, Server: cluster.Server, StartedAt: time.Now().UTC()}
 	mode := sandbox.Live
 	switch {
 	case o.dryRun:
@@ -155,7 +167,7 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 		cctx, ccancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer ccancel()
 		deleted, cerr := sandbox.Cleanup(cctx, cluster.Client, o.tenants.Namespaces, sb.RunID)
-		rep.Cleanup = &cleanupInfo{Deleted: deleted.Total()}
+		rep.Cleanup = &report.Cleanup{Deleted: deleted.Total()}
 		if cerr != nil {
 			rep.Cleanup.Error = cerr.Error()
 		}
@@ -171,32 +183,37 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 	if mode == sandbox.DryRun {
 		rep.Requests = sb.Requests()
 	}
-	rep.Summary = runner.Count(rep.Results)
+	rep.Summarise()
 	interrupted := ctx.Err()
 	cleanup()
+	rep.Run.FinishedAt = time.Now().UTC()
 
-	var perr error
-	if o.output == "json" {
-		perr = writeJSON(w, &rep)
-	} else {
-		perr = writeRunTable(w, &rep)
-	}
+	// The outcome is decided before anything is written, so every file carries the exit code.
+	var outcome error
 	switch {
-	case perr != nil:
-		return perr
 	case rep.Cleanup != nil && rep.Cleanup.Error != "":
-		return exitcode.Errorf("clean-up of run %s was not complete: %s; remove the rest with: bulkhead cleanup --run-id %s", sb.RunID, rep.Cleanup.Error, sb.RunID)
+		outcome = exitcode.Errorf("clean-up of run %s was not complete: %s; remove the rest with: bulkhead cleanup --run-id %s", sb.RunID, rep.Cleanup.Error, sb.RunID)
 	case errors.Is(interrupted, context.Canceled):
-		return exitcode.Errorf("the run was interrupted; its test objects were removed")
+		rep.Run.Interrupted = "interrupted"
+		outcome = exitcode.Errorf("the run was interrupted; its test objects were removed")
 	case errors.Is(interrupted, context.DeadlineExceeded):
-		return exitcode.Errorf("the run reached its time limit of %s", o.timeout)
+		rep.Run.Interrupted = "timeout"
+		outcome = exitcode.Errorf("the run reached its time limit of %s", o.timeout)
 	case mode == sandbox.DryRun:
-		return nil
+	default:
+		if code := runner.ExitCode(rep.Results); code != exitcode.OK {
+			outcome = &exitcode.Err{Code: code, Err: errors.New(rep.Summary.Line())}
+		}
 	}
-	if code := runner.ExitCode(rep.Results); code != exitcode.OK {
-		return &exitcode.Err{Code: code, Err: errors.New(summaryLine(rep.Results))}
+	rep.ExitCode = exitcode.Of(outcome)
+
+	if err := report.Write(w, o.output, rep); err != nil {
+		return err
 	}
-	return nil
+	if err := writeReportFiles(o.reports, rep); err != nil {
+		return err
+	}
+	return outcome
 }
 
 func (o *checkOptions) selected(run bool) ([]catalog.Check, error) {
