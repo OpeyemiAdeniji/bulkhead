@@ -281,3 +281,24 @@ Memory with Cilium, Kyverno and both tenants: 2.9 GiB used by `free -h`, against
 ## Calico 3.33.0 on Kubernetes 1.35 (Phase 1)
 
 Observed in CI on 2026-11-15 (run 43664743695, the first run of the `compatibility` job): on a kind cluster with `kindest/node:v1.35.8`, `kubectl create -f v3_projectcalico_org.yaml` from Calico v3.33.0 failed for six objects with `no matches for kind "MutatingAdmissionPolicy" in version "admissionregistration.k8s.io/v1"` (and the matching bindings), and `make cluster-up` stopped. The same manifests installed on 1.36.4 and 1.37.0. So the pinned Calico needs a cluster that serves that API version, which 1.35 does not. Whether an older Calico release works on 1.35 was not tried. Kubernetes 1.35 is tested with Cilium instead.
+
+## First cloud run: GKE Standard (Phase 1)
+
+Method: on 2026-11-15 and 16 (UTC), a new Google Cloud project got one zonal GKE Standard cluster in `europe-west1-b`, created with `--num-nodes 2 --machine-type e2-standard-2 --disk-type pd-standard --disk-size 30 --enable-dataplane-v2 --release-channel regular`. Kyverno was installed exactly as in `docs/install.md` step 2 (chart 3.9.2, three admission replicas), and `bulkhead-platform` 0.3.0-rc.2 was installed from `oci://ghcr.io/opeyemiadeniji/charts` after `gh attestation verify` passed for both charts, with the run's Google identity as the only platform admin user. The tenants were applied with `KUBE_CONTEXT=<gke context> make tenants-apply`. The cluster was deleted at the end, and no clusters, instances, disks, forwarding rules, addresses or target pools were left in the project.
+
+| Step | Result |
+|---|---|
+| Cluster create | 340 s. Kubernetes `v1.36.4-gke.2377000`, Container-Optimized OS, containerd 2.2.7 |
+| Kyverno and the platform chart | 110 s. Both policies ready |
+| Isolation suite, tenant chart of 0.3.0-rc.2 | 39 of 40 checks that ran. **Tenant DNS failed** (see below) |
+| Isolation suite, with the DNS fix | 41 of 41 |
+| Live policy suite | 29 of 29 (twice) |
+| Isolation suite without the network policies of tenant alpha | 41 of 41. Tenant bravo's own policies still block traffic in both directions |
+| Isolation suite without the network policies of both tenants | 32 passed and 9 failed: the eight checks that tenants cannot reach each other, and once the check that alpha reaches its own server across nodes (no output was kept, so the cause is not known; it passed in every other run) |
+| Cluster delete | about 5 minutes |
+
+**Tenant DNS failed on GKE.** The cluster had NodeLocal DNSCache switched on (`addonsConfig.dnsCacheConfig.enabled: true`) although the create command did not ask for it. Queries to the DNS service address (`34.118.224.10`) are then answered by pods labelled `k8s-app: node-local-dns` in `kube-system`, not by kube-dns. The tenant's DNS policy allowed only kube-dns, so `nslookup kubernetes.default.svc.cluster.local` timed out in a tenant pod, worked in a namespace without network policies, and worked from the tenant when it was sent to a kube-dns pod address directly. Adding the `node-local-dns` pods to the DNS policy made it work (three of three lookups, and an outside name), while port 9253 of the same pods stayed blocked. The address `169.254.20.10` that the install guide suggested for GKE did not answer at all, even without network policies. The tenant chart now allows `k8s-app: node-local-dns` by default (`dns.extraPodLabels`).
+
+**The test machine, not the cluster, dropped connections.** From WSL 2 on the Windows test machine, between 9 of 30 and 23 of 60 requests to the cluster's API address timed out, while the same machine's Windows side reached it 30 of 30 times, and WSL reached other Google addresses 60 of 60 times. Pausing a VPN client (Tailscale) did not fix it. So the suites were run from WSL through the Windows `kubectl.exe` (client 1.33.x, three minor versions older than the cluster, which is outside the supported skew) with a short-lived access token. Two runs failed with `Unauthorized` when that token expired after an hour, and one check once with a connection timeout; these were run again. These are problems of the test machine, but anyone who runs the suites from WSL may meet them.
+
+Not measured: the cost of the run (Google reports it with a delay), GKE Autopilot, private clusters, and Cloud DNS for GKE instead of kube-dns.

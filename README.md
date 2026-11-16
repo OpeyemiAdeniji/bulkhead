@@ -95,7 +95,7 @@ Fix: pin the image to a version, for example busybox:1.36, or to a digest. Runbo
 
 Bulkhead is two Helm charts: `charts/bulkhead-platform`, installed once per cluster next to Kyverno, and `charts/bulkhead-tenant`, installed once per tenant file. Everything that differs between clusters is a value: who your platform admins are, where DNS runs, the namespace prefix and the Pod Security level ([ADR 0016](docs/adr/0016-two-charts-configurable-per-cluster.md)). From the next release on, both charts are published to `oci://ghcr.io/opeyemiadeniji/charts`, signed, with a record of how they were built ([ADR 0017](docs/adr/0017-signed-chart-releases.md)).
 
-[docs/install.md](docs/install.md) walks through it for Amazon EKS, Google Kubernetes Engine, Azure Kubernetes Service and other clusters, including the one thing Bulkhead cannot do for you: a network plugin that enforces network policies. The charts are tested on kind only so far, and a cloud run is planned in Phase 1 of the roadmap.
+[docs/install.md](docs/install.md) walks through it for Amazon EKS, Google Kubernetes Engine, Azure Kubernetes Service and other clusters, including the one thing Bulkhead cannot do for you: a network plugin that enforces network policies. Besides kind, the guide has been followed on GKE Standard with Dataplane V2, where all isolation and live policy checks passed after a DNS fix ([measurements](docs/measurements.md#first-cloud-run-gke-standard-phase-1)). EKS and AKS have not been run yet.
 
 ## Quick start (local demo on kind)
 
@@ -189,7 +189,7 @@ One machine (Windows 11 with WSL2, 7.7 GiB of memory, 8 CPUs) and GitHub's `ubun
 - No check yet tries to run a privileged pod (Pod Security is set to `restricted` on every namespace), or to reach the internet (the baseline denies egress).
 - Removing a tenant file does not remove the tenant until Argo CD arrives. For now, a tenant is removed by deleting its namespace.
 - The policies are not tested on StatefulSets, DaemonSets and Jobs, during a Helm upgrade of Kyverno or a node drain, or with two Kyverno replicas. The Kyverno CLI cannot test updates and deletions offline, so those parts are tested live only.
-- The charts have not been run on a cloud cluster yet. [docs/install.md](docs/install.md) is written from the providers' documentation.
+- The charts have been run on one cloud cluster, GKE Standard, once. The EKS and AKS parts of [docs/install.md](docs/install.md) are written from the providers' documentation.
 - Not built yet: the pull request preview comment, the Trivy gate, cost estimates and the platform SLO.
 - The size tiers and the default limits have not been compared with real workloads.
 - Everything was tested with kind v0.33.0, Kubernetes v1.37.0, Calico v3.33.0 and Kyverno v1.19.2 only.
