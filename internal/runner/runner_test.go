@@ -53,6 +53,24 @@ func TestPairThatPassedKeepsThePass(t *testing.T) {
 	}
 }
 
+func TestASkippedSubjectOfThePairDoesNotSpoilIt(t *testing.T) {
+	rs := ApplyPairs([]Result{
+		{Check: "ACC-05", Status: Pass, Subject: "a"},
+		{Check: "ACC-05", Status: Skipped, Subject: "b"},
+		{Check: "ACC-04", Status: Pass, Subject: "a"},
+	})
+	if rs[2].Status != Pass {
+		t.Errorf("got %+v", rs[2])
+	}
+	rs = ApplyPairs([]Result{
+		{Check: "ACC-05", Status: Skipped, Subject: "a"},
+		{Check: "ACC-04", Status: Pass, Subject: "a"},
+	})
+	if rs[1].Status != Inconclusive {
+		t.Errorf("a pair that passed nowhere must make it inconclusive: %+v", rs[1])
+	}
+}
+
 func TestReadOnlySkipsActiveChecks(t *testing.T) {
 	called := false
 	register(t, "NET-01", func(context.Context, *Env, catalog.Check) []Result { called = true; return nil })

@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/OpeyemiAdeniji/bulkhead/internal/catalog"
+	_ "github.com/OpeyemiAdeniji/bulkhead/internal/checks" // registers the implemented checks
 	"github.com/OpeyemiAdeniji/bulkhead/internal/exitcode"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/kube"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/runner"

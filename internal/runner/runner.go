@@ -183,19 +183,25 @@ func runOne(ctx context.Context, env *Env, c catalog.Check, f Func, timeout time
 	return rs
 }
 
-// ApplyPairs marks a passed blocked check inconclusive when its pair has a result that is not a pass.
-// A pair that did not run at all (for example skipped) also makes it inconclusive.
+// ApplyPairs marks a passed blocked check inconclusive unless its pair passed: at least one
+// result of the pair is a pass, and none is anything but a pass or skipped. A subject the pair
+// skipped (for example a tenant without a viewer) does not spoil the others, but a pair that
+// passed nowhere makes the blocked result inconclusive.
 func ApplyPairs(results []Result) []Result {
-	pairOK := map[string]bool{}
-	seen := map[string]bool{}
+	passed := map[string]bool{}
+	spoiled := map[string]bool{}
 	for _, r := range results {
-		if !seen[r.Check] {
-			seen[r.Check] = true
-			pairOK[r.Check] = true
+		switch r.Status {
+		case Pass:
+			passed[r.Check] = true
+		case Skipped:
+		default:
+			spoiled[r.Check] = true
 		}
-		if r.Status != Pass {
-			pairOK[r.Check] = false
-		}
+	}
+	pairOK := map[string]bool{}
+	for id := range passed {
+		pairOK[id] = !spoiled[id]
 	}
 	for i, r := range results {
 		c, ok := catalog.Get(r.Check)

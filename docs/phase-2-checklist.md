@@ -29,11 +29,11 @@ One item of this package waits for the first active check, because only then doe
 
 ## 3. Read-only checks
 
-- [ ] ACC-01 to ACC-05 (access between tenants).
-- [ ] GRD-01 to GRD-10 (the tenant cannot change its guardrails or open a shell in another tenant's pods), with server-side dry runs and access reviews.
-- [ ] ADM-01 and ADM-02 (Pod Security), with server-side dry runs.
-- [ ] QTA-03 to QTA-07 (service types, the per-container maximum, default limits), with server-side dry runs.
-- [ ] Each blocked result names the layer that decided it: access rules, admission (which policy), quota or limit range. A pass from an unexpected layer is reported.
+- [x] ACC-01 to ACC-05 (access between tenants). A read of a name that does not exist tells "allowed" (not found) from "refused" (forbidden) without reading any real secret.
+- [x] GRD-01 to GRD-10 (the tenant cannot change its guardrails or open a shell in another tenant's pods), with server-side dry runs and access reviews.
+- [x] ADM-01 and ADM-02 (Pod Security), with server-side dry runs.
+- [x] QTA-03 to QTA-07 (service types, the per-container maximum, default limits), with server-side dry runs.
+- [x] Each blocked result names the layer that decided it: access rules, Pod Security, admission (which policy or webhook), quota or limit range. A pass from an unexpected layer is reported. On kind, with the built-in admin role given to a tenant, GRD-02 was reported as refused by the admission policy protect-platform-objects instead of access rules.
 
 ## 4. Active checks
 
