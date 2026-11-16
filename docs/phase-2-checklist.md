@@ -11,19 +11,21 @@ Phase 2 is done when the platform's own CI runs the checker instead of `tests/is
 - [x] Exit codes 0, 1, 2 and 3 (ADR 0018).
 - [x] The catalogue in Go: every check of the isolation suite has an ID, level, mode, expected result, pair, what it proves and does not prove, how it is run, and the fix. Pod Security, egress to the internet and a shell into another tenant's pods are added. Done when a unit test enforces those fields and pairs, and `bulkhead check --list` prints the catalogue as a table or as JSON (39 checks).
 - [x] CI job `checker`: `gofmt`, `go vet`, tests with the race detector, `govulncheck`, `golangci-lint`, and a build that runs the binary. Dependabot watches the Go modules.
-- [ ] A documentation page of the checks, `docs/checks.md`, generated from the catalogue, with a CI check that it is up to date.
+- [x] A documentation page of the checks, `docs/checks.md`, generated from the catalogue, with a CI check that it is up to date.
 
 ## 2. Safety, before any check talks to a cluster
 
-- [ ] Connect with the user's kubeconfig and context (`--context`, `--kubeconfig`), and print the cluster, the server version and the user before anything runs.
-- [ ] Tenant selection: `--tenant` names the namespaces to test, and their identities (group, user or service account) come from flags or from a profile. Nothing outside the named namespaces is touched.
-- [ ] Every object the checker creates has the labels `app.kubernetes.io/managed-by: bulkhead-check` and `bulkhead.io/run-id: <id>`, and a name prefix.
-- [ ] Clean-up at the end, on Ctrl+C and on SIGTERM, and `bulkhead cleanup --run-id` (or all runs) for objects left after a crash. Done when a test interrupts a run and finds nothing left.
-- [ ] A timeout for every check and for the whole run.
-- [ ] `--dry-run` lists every object that would be created and every request that would be sent, without sending them.
-- [ ] `--read-only` runs only checks that create nothing (access reviews, reads, server-side dry runs), so it is safe on production clusters.
-- [ ] The tenant identity is confirmed with a `SelfSubjectReview` before any check runs, and the run stops when it does not match.
-- [ ] The checker refuses to run active checks in namespaces that do not look like tenants (for example `kube-system`), unless forced.
+One item of this package waits for the first active check, because only then does a run create objects: an end-to-end test that interrupts a run on kind and finds nothing left (it is listed under work package 4).
+
+- [x] Connect with the user's kubeconfig and context (`--context`, `--kubeconfig`), and print the cluster, the server version and the user before anything runs.
+- [x] Tenant selection: `--tenant` names the namespaces to test. The identities are the subjects of a role binding in each namespace (`--admin-binding`, `--viewer-binding`, by default those of Bulkhead's tenant chart); a group wins over a service account, which wins over a user. Nothing outside the named namespaces is touched. Profiles for other tenancy tools are in work package 7.
+- [x] Every object the checker creates has the labels `app.kubernetes.io/managed-by: bulkhead-check` and `bulkhead.io/run-id: <id>`, and the name prefix `bhc-`. The sandbox refuses to create an object without them.
+- [x] Clean-up at the end, on Ctrl+C and on SIGTERM, and `bulkhead cleanup --run-id` (or `--all-runs`) for objects left after a crash. Clean-up deletes only objects with the checker's labels, in the named namespaces.
+- [x] A timeout for every check and for the whole run.
+- [x] `--dry-run` lists every object that would be created and every request that would be sent, without sending them.
+- [x] `--read-only` skips active checks, and the sandbox refuses every request that would store an object, so a mistake in a check cannot store one either.
+- [x] The tenant identity is confirmed with a `SelfSubjectReview` before any check runs, and the run stops when it does not match.
+- [x] The checker refuses system namespaces (`default`, `kube-*`) as tenants, unless `--force-namespaces` is given.
 
 ## 3. Read-only checks
 
@@ -35,11 +37,12 @@ Phase 2 is done when the platform's own CI runs the checker instead of `tests/is
 
 ## 4. Active checks
 
+- [ ] An end-to-end test that interrupts a run on kind while its test pods exist, and finds nothing left (from work package 2).
 - [ ] Test pods with placement on two nodes, readiness waits and clear errors when the cluster has only one node.
 - [ ] NET-01 to NET-06 (network), in both directions between every pair of tenants.
 - [ ] RES-01 to RES-05 (noisy neighbour), measured from cgroup v2.
 - [ ] QTA-01, QTA-02, QTA-08 and QTA-09 (the quota with real pods), reading the tenant's quota and limit range instead of fixed numbers.
-- [ ] Results of a "blocked" check are only valid when its pair passed, and the report says so.
+- [x] Results of a "blocked" check are only valid when its pair passed: otherwise they are reported as inconclusive and fail the run. The pairs of selected checks are added to the run.
 
 ## 5. Reports and exit codes
 

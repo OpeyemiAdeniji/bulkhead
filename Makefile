@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help setup lint secrets hooks-update validate validate-exceptions test-contract test-exceptions chart-test test-isolation cluster-up cluster-down tenants-apply kyverno-up policy-test test-policy-live checker-build checker-test
+.PHONY: help setup lint secrets hooks-update validate validate-exceptions test-contract test-exceptions chart-test test-isolation cluster-up cluster-down tenants-apply kyverno-up policy-test test-policy-live checks-doc checker-build checker-test test-checker-e2e
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -54,8 +54,14 @@ policy-test: ## Test the Kyverno policies offline, and check that the tests can 
 test-policy-live: ## Test the Kyverno policies on the local cluster (set WITH_EXPIRY=1 to test expiry)
 	bash tests/policy-live/run.sh
 
+checks-doc: ## Regenerate docs/checks.md from the check catalogue
+	go test ./internal/catalog -run TestChecksDocIsUpToDate -update -count=1
+
 checker-build: ## Build the checker into bin/bulkhead
 	go build -o bin/bulkhead ./cmd/bulkhead
+
+test-checker-e2e: ## Run the checker against the local cluster with both tenants (make cluster-up tenants-apply first)
+	bash tests/checker/e2e.sh
 
 checker-test: ## Format check, vet and unit tests of the checker (CI also runs the race detector, govulncheck and golangci-lint)
 	@unformatted="$$(gofmt -l .)"; if [ -n "$$unformatted" ]; then echo "run gofmt -w on:"; echo "$$unformatted"; exit 1; fi

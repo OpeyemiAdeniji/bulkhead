@@ -2,11 +2,15 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -15,10 +19,18 @@ import (
 )
 
 // Run runs bulkhead with the given arguments and returns the exit code.
+// Ctrl+C and SIGTERM cancel the context, so a running check stops and its test objects are removed.
 func Run(args []string, stdout, stderr io.Writer) int {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return RunContext(ctx, args, stdout, stderr)
+}
+
+// RunContext is Run with a given context.
+func RunContext(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	root := newRoot(stdout, stderr)
 	root.SetArgs(args)
-	err := root.Execute()
+	err := root.ExecuteContext(ctx)
 	if err != nil {
 		var e *exitcode.Err
 		// Cobra reports an unknown command as a plain error; it is a usage error.
@@ -45,7 +57,7 @@ func newRoot(stdout, stderr io.Writer) *cobra.Command {
 	root.SetErr(stderr)
 	// Wrong flags and arguments are usage errors (exit code 2).
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error { return exitcode.Usagef("%v", err) })
-	root.AddCommand(newVersion(), newCheck())
+	root.AddCommand(newVersion(), newCheck(), newCleanup())
 	return root
 }
 

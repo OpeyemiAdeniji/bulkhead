@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **The start of `bulkhead check`**, the tenant isolation checker (ADR 0012), in this repository as one Go module (ADR 0018). `bulkhead version` prints the version, and `bulkhead check --list` prints the catalogue of 39 checks as a table or as JSON, filtered by category and level. Every check has an ID, a level, a mode (read-only or active), the expected result, the "must work" check it is paired with, what it proves and does not prove, how it is run, and the fix, and unit tests enforce those rules. Running the checks against a cluster is not built yet. The work is tracked in `docs/phase-2-checklist.md`.
 - CI job `checker`: `gofmt`, `go vet`, tests with the race detector, `govulncheck`, `golangci-lint`, and a build that runs the binary. Dependabot watches the Go modules. `make checker-build` and `make checker-test` run the same locally.
+- `docs/checks.md`, generated from the catalogue by `make checks-doc`. A unit test fails when the page and the catalogue differ.
+- **The safety rules of the checker** (work package 2). `bulkhead check --tenant <namespace>...` connects with your kubeconfig (`--context`, `--kubeconfig`), prints the cluster, its version and your identity, and reads each tenant's admin and viewer from role bindings in its namespace. It confirms every tenant identity with a `SelfSubjectReview` through impersonation before any check, and stops when one does not match. All requests go through one sandbox, which:
+  - refuses to create an object without the run's labels (`app.kubernetes.io/managed-by: bulkhead-check`, `bulkhead.io/run-id`) and the name prefix `bhc-`;
+  - sends nothing in `--dry-run`, and prints every request the run would send instead;
+  - refuses every request that would store an object in `--read-only`.
+
+  Clean-up runs at the end, also after Ctrl+C, SIGTERM or the time limit (`--timeout`, `--check-timeout`), and `bulkhead cleanup --run-id` (or `--all-runs`) removes what a killed run left. System namespaces are refused as tenants unless `--force-namespaces` is given. A "blocked" result counts only when its pair passed; otherwise it is inconclusive and fails the run. No check is implemented yet, so a run reports every check as not implemented and exits with 3.
+- `tests/checker/e2e.sh` (`make test-checker-e2e`) runs the checker against the kind cluster in the `isolation` CI job: dry run, live and read-only runs with identity confirmation, refused and missing namespaces, and clean-up of a killed run's objects only.
 
 ## [0.3.0] - 2026-11-16
 

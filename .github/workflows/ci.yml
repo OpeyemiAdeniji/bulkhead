@@ -120,6 +120,11 @@ jobs:
         run: make tenants-apply
       - name: Run the isolation tests
         run: make test-isolation
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Run the checker on the same cluster (its safety rules)
+        run: make test-checker-e2e
       - name: Show the cluster state after a failure
         if: failure()
         run: |
