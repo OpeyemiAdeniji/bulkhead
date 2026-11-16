@@ -99,7 +99,7 @@ func (s *activeSim) env(t *testing.T) *runner.Env {
 		return true, p, nil
 	})
 	s.start = time.Now()
-	Exec = func(_ context.Context, _ *runner.Env, ns, pod string, cmd []string) (string, error) {
+	Exec = func(_ context.Context, _ *runner.Env, _, _ string, cmd []string) (string, error) {
 		if cmd[0] == "cat" {
 			used := int64(time.Since(s.start).Seconds() * s.hogCPUs * 1e6)
 			throttled := int64(0)

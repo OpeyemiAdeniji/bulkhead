@@ -29,7 +29,7 @@ expect() {
   local code=${PIPESTATUS[0]}
   if [ "$code" -ne "$want" ]; then
     fail "$what (exit code $code, want $want)"
-    sed 's/^/      /' "$out" | tail -15
+    show
     return
   fi
   for t in "${texts[@]}"; do
@@ -37,18 +37,24 @@ expect() {
       # "0 fail" means: no failed result in the summary line.
       if grep -qE '^[0-9]+ results:.* [1-9][0-9]* fail' "$out"; then
         fail "$what (a check failed)"
-        sed 's/^/      /' "$out" | tail -15
+        show
         return
       fi
       continue
     fi
     if ! grep -qF -- "$t" "$out"; then
       fail "$what (the output lacks: $t)"
-      sed 's/^/      /' "$out" | tail -15
+      show
       return
     fi
   done
   pass "$what"
+}
+
+# show prints, after a failure, every result that did not pass and the end of the output.
+show() {
+  grep -E '^[A-Z]{3}-[0-9]{2} (fail|error|inconclusive) ' "$out" | sed 's/^/      /'
+  sed 's/^/      /' "$out" | tail -6
 }
 
 leftovers() { k get pods,services,secrets,configmaps,deployments -A -l app.kubernetes.io/managed-by=bulkhead-check --no-headers 2> /dev/null | wc -l; }
