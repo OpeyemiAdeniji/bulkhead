@@ -51,7 +51,7 @@ func sample() *report.Report {
 	}
 	r.Requests = []sandbox.Request{{Verb: "create", Kind: "pod", Namespace: "tenant-alpha", Name: "bhc-x", As: "bulkhead-check (groups alpha-admins)", Stores: true, Check: "QTA-08"}}
 	r.Cleanup = &report.Cleanup{Deleted: 20}
-	r.Summarize()
+	r.Summarise()
 	r.ExitCode = 1
 	return r
 }

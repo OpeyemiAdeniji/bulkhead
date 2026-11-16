@@ -183,7 +183,7 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 	if mode == sandbox.DryRun {
 		rep.Requests = sb.Requests()
 	}
-	rep.Summarize()
+	rep.Summarise()
 	interrupted := ctx.Err()
 	cleanup()
 	rep.Run.FinishedAt = time.Now().UTC()

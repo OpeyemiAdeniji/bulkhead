@@ -96,8 +96,8 @@ func New(checks []catalog.Check) *Report {
 	}
 }
 
-// Summarize fills in the summary from the results.
-func (r *Report) Summarize() {
+// Summarise fills in the summary from the results.
+func (r *Report) Summarise() {
 	n := runner.Count(r.Results)
 	r.Summary = Summary{
 		Total: len(r.Results), Pass: n[runner.Pass], Fail: n[runner.Fail], Inconclusive: n[runner.Inconclusive],
