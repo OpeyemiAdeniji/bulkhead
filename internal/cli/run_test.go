@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -25,7 +26,7 @@ func whoami(c *fake.Clientset, id kube.Identity) {
 	c.PrependReactor("create", "selfsubjectreviews", func(k8stesting.Action) (bool, runtime.Object, error) {
 		r := &authenticationv1.SelfSubjectReview{}
 		r.Status.UserInfo.Username = id.User
-		r.Status.UserInfo.Groups = append(id.Groups, "system:authenticated")
+		r.Status.UserInfo.Groups = slices.Concat(id.Groups, []string{"system:authenticated"})
 		return true, r, nil
 	})
 }

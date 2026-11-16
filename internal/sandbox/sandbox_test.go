@@ -23,7 +23,8 @@ func TestRunIDIsAValidLabelValue(t *testing.T) {
 	if !strings.HasPrefix(id, "20261116t091010-") {
 		t.Errorf("run ID %q should start with the UTC time", id)
 	}
-	if NewRunID(time.Now()) == NewRunID(time.Now()) {
+	first, second := NewRunID(time.Now()), NewRunID(time.Now())
+	if first == second {
 		t.Error("two run IDs in the same second must differ")
 	}
 }
