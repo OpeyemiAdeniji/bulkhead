@@ -84,7 +84,7 @@ reports="$(mktemp -d)"
 k -n tenant-bravo create role break-secrets --verb=get,list --resource=secrets > /dev/null
 k -n tenant-bravo create rolebinding break-secrets --role=break-secrets --group=alpha-admins > /dev/null
 "$BIN" check "${TENANTS[@]}" --read-only --category access -o json \
-  --report "junit=$reports/junit.xml" --report "sarif=$reports/out.sarif" > "$reports/report.json" 2> /dev/null
+  --report "junit=$reports/junit.xml" --report "sarif=$reports/out.sarif" --report "html=$reports/report.html" > "$reports/report.json" 2> /dev/null
 code=$?
 k -n tenant-bravo delete rolebinding break-secrets > /dev/null
 k -n tenant-bravo delete role break-secrets > /dev/null
@@ -103,11 +103,13 @@ assert int(j.get("failures")) == 2 and int(j.get("tests")) == r["summary"]["tota
 s = json.load(open(d + "/out.sarif"))
 results = s["runs"][0]["results"]
 assert s["version"] == "2.1.0" and len(results) == 2 and {x["ruleId"] for x in results} == {"ACC-02", "ACC-03"}, results
+h = open(d + "/report.html").read()
+assert "2 results failed. Exit code 1." in h and h.count('class="s fail">') >= 2 and "<script" not in h, "html"
 EOF
 then
-  pass "JUnit and SARIF report the same two failures as the JSON report"
+  pass "JUnit, SARIF and HTML report the same two failures as the JSON report"
 else
-  fail "JUnit or SARIF disagree with the JSON report"
+  fail "JUnit, SARIF or HTML disagree with the JSON report"
 fi
 rm -rf "$reports"
 

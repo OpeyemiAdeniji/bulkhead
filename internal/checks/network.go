@@ -176,10 +176,16 @@ func netPerTenant(pick func(*netFixture, tenant.Tenant) (testPod, testPod, error
 			}
 			subject := fmt.Sprintf("%s, %s -> %s", t.Namespace, nodeLabel(from.Node), nodeLabel(to.Node))
 			o, err := fetch(ctx, env, c.ID, from, to)
-			out = append(out, netResult(c, subject, o, err))
+			out = append(out, flow(netResult(c, subject, o, err), t.Namespace, t.Namespace))
 		}
 		return out
 	}
+}
+
+// flow names the source and destination of a network result, for the matrix of the HTML report.
+func flow(r runner.Result, from, to string) runner.Result {
+	r.From, r.To = from, to
+	return r
 }
 
 func nodeLabel(n string) string {
@@ -198,14 +204,16 @@ func net03(ctx context.Context, env *runner.Env, c catalog.Check) []runner.Resul
 	for _, t := range env.Tenants {
 		cli := f.client(t, 0)
 		o, err := execIn(ctx, env, c.ID, cli.Namespace, cli.Name, "nslookup", "kubernetes.default.svc.cluster.local")
+		var r runner.Result
 		switch {
 		case errors.Is(err, sandbox.ErrNotSent):
-			out = append(out, runner.Result{Status: runner.Planned, Subject: t.Namespace})
+			r = runner.Result{Status: runner.Planned, Subject: t.Namespace}
 		case err == nil:
-			out = append(out, runner.Result{Status: runner.Pass, Subject: t.Namespace})
+			r = runner.Result{Status: runner.Pass, Subject: t.Namespace}
 		default:
-			out = append(out, runner.Result{Status: runner.Fail, Subject: t.Namespace, Message: "the lookup failed: " + firstLine(o, err)})
+			r = runner.Result{Status: runner.Fail, Subject: t.Namespace, Message: "the lookup failed: " + firstLine(o, err)}
 		}
+		out = append(out, flow(r, t.Namespace, "dns"))
 	}
 	return out
 }
@@ -234,7 +242,7 @@ func netBetween(across bool) runner.Func {
 				from, to := f.client(p[0], i), f.server(p[1], j)
 				subject := fmt.Sprintf("%s, %s -> %s", between(p[0], p[1]), nodeLabel(from.Node), nodeLabel(to.Node))
 				o, err := fetch(ctx, env, c.ID, from, to)
-				out = append(out, netResult(c, subject, o, err))
+				out = append(out, flow(netResult(c, subject, o, err), p[0].Namespace, p[1].Namespace))
 			}
 		}
 		return out
@@ -251,16 +259,18 @@ func net06(ctx context.Context, env *runner.Env, c catalog.Check) []runner.Resul
 		cli := f.client(t, 0)
 		o, err := execIn(ctx, env, c.ID, cli.Namespace, cli.Name, "wget", "-q", "-O-", "-T", "3", InternetProbe)
 		subject := t.Namespace + " -> " + InternetProbe
+		var r runner.Result
 		switch {
 		case errors.Is(err, sandbox.ErrNotSent):
-			out = append(out, runner.Result{Status: runner.Planned, Subject: subject})
+			r = runner.Result{Status: runner.Planned, Subject: subject}
 		case err == nil || strings.Contains(o, "HTTP/") || strings.Contains(o, "server returned error"):
-			out = append(out, runner.Result{Status: runner.Fail, Subject: subject, Message: "the internet answered, but egress must be blocked"})
+			r = runner.Result{Status: runner.Fail, Subject: subject, Message: "the internet answered, but egress must be blocked"}
 		case strings.Contains(o, "timed out"):
-			out = append(out, runner.Result{Status: runner.Pass, Subject: subject, Layer: LayerNetworkPolicy, Message: "blocked: the connection timed out"})
+			r = runner.Result{Status: runner.Pass, Subject: subject, Layer: LayerNetworkPolicy, Message: "blocked: the connection timed out"}
 		default:
-			out = append(out, runner.Result{Status: runner.Error, Subject: subject, Message: "the probe failed for another reason: " + firstLine(o, err)})
+			r = runner.Result{Status: runner.Error, Subject: subject, Message: "the probe failed for another reason: " + firstLine(o, err)}
 		}
+		out = append(out, flow(r, t.Namespace, "internet"))
 	}
 	return out
 }

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="bulkhead {{.R.Tool.Version}}">
+<title>Tenant isolation report: {{.R.Run.Context}}</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1b1f24; --muted: #5b6470; --line: #d9dee4; --panel: #f5f7f9;
+  --pass: #1a7f37; --pass-bg: #e6f4ea; --fail: #b42318; --fail-bg: #fdecea;
+  --warn: #9a6700; --warn-bg: #fff4d6; --none: #5b6470; --none-bg: #eef1f4; --info-bg: #e8f0fe;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216; --fg: #e6e9ed; --muted: #9aa4af; --line: #2a313a; --panel: #171b21;
+    --pass: #4ac26b; --pass-bg: #12301c; --fail: #ff7b72; --fail-bg: #3b1515;
+    --warn: #e3b341; --warn-bg: #3a2c0b; --none: #9aa4af; --none-bg: #1f252d; --info-bg: #13233f;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 26px; margin: 0 0 4px; }
+h2 { font-size: 19px; margin: 32px 0 8px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+p.sub { color: var(--muted); margin: 0 0 16px; }
+.verdict { padding: 12px 16px; border-radius: 8px; font-weight: 600; margin: 16px 0; }
+.verdict.pass { background: var(--pass-bg); color: var(--pass); }
+.verdict.fail { background: var(--fail-bg); color: var(--fail); }
+.verdict.warn { background: var(--warn-bg); color: var(--warn); }
+.verdict.info { background: var(--info-bg); }
+table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { background: var(--panel); font-weight: 600; }
+dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; overflow-wrap: anywhere; }
+.counts { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.counts span { padding: 4px 10px; border-radius: 999px; background: var(--none-bg); }
+.s { font-weight: 600; white-space: nowrap; }
+.s.pass { color: var(--pass); } .s.fail { color: var(--fail); } .s.warn { color: var(--warn); } .s.none { color: var(--none); }
+.matrix td, .matrix th { text-align: center; }
+.matrix th.src { text-align: left; }
+.cell { border-radius: 6px; padding: 6px; font-weight: 600; }
+.cell.pass { background: var(--pass-bg); color: var(--pass); }
+.cell.fail { background: var(--fail-bg); color: var(--fail); }
+.cell.warn { background: var(--warn-bg); color: var(--warn); }
+.cell.none { background: var(--none-bg); color: var(--none); font-weight: 400; }
+.cell small { display: block; font-weight: 400; color: var(--muted); }
+details { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; margin: 6px 0; }
+details summary { cursor: pointer; font-weight: 600; }
+details dl { margin: 8px 0 0; }
+details dt { color: var(--muted); }
+details dd { margin: 0 0 6px; }
+code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+.scroll { overflow-x: auto; }
+@media print { body { font-size: 11pt; } details { break-inside: avoid; } details:not([open]) > *:not(summary) { display: none; } }
+</style>
+</head>
+<body>
+<main>
+<h1>Tenant isolation report</h1>
+<p class="sub">bulkhead check on <code>{{.R.Run.Context}}</code>, {{.R.Run.StartedAt.Format "2 January 2006, 15:04 MST"}}</p>
+
+<div class="verdict {{.Class}}" role="status">{{.Verdict}} Exit code {{.R.ExitCode}}.</div>
+
+<h2>The run</h2>
+<dl class="facts">
+  <dt>Cluster</dt><dd><code>{{.R.Run.Context}}</code>, {{.R.Run.Server}}</dd>
+  <dt>Kubernetes</dt><dd>{{.R.Run.Kubernetes}}</dd>
+  <dt>Run</dt><dd><code>{{.R.Run.ID}}</code>, mode {{.R.Run.Mode}}{{if .R.Run.Interrupted}}, {{.R.Run.Interrupted}}{{end}}</dd>
+  <dt>Time</dt><dd>{{.R.Run.StartedAt.Format "2006-01-02 15:04:05 MST"}}, {{.Duration}}</dd>
+  <dt>Run by</dt><dd>{{.R.Run.User}}</dd>
+  <dt>Identities</dt><dd>{{if .R.Run.IdentitiesConfirmed}}every tenant identity was confirmed with the API server (SelfSubjectReview){{else}}not confirmed (dry run){{end}}</dd>
+  <dt>Tool</dt><dd>bulkhead {{.R.Tool.Version}} ({{.R.Tool.Commit}})</dd>
+  {{if .R.Cleanup}}<dt>Clean-up</dt><dd>{{.R.Cleanup.Deleted}} test objects removed{{if .R.Cleanup.Error}}; errors: {{.R.Cleanup.Error}}{{end}}</dd>{{end}}
+</dl>
+
+<div class="counts" aria-label="Summary">
+  <span>{{.R.Summary.Total}} results</span>
+  {{if .R.Summary.Pass}}<span class="s pass">✓ {{.R.Summary.Pass}} pass</span>{{end}}
+  {{if .R.Summary.Fail}}<span class="s fail">✗ {{.R.Summary.Fail}} fail</span>{{end}}
+  {{if .R.Summary.Inconclusive}}<span class="s warn">! {{.R.Summary.Inconclusive}} inconclusive</span>{{end}}
+  {{if .R.Summary.Error}}<span class="s warn">! {{.R.Summary.Error}} error</span>{{end}}
+  {{if .R.Summary.Skipped}}<span class="s none">{{.R.Summary.Skipped}} skipped</span>{{end}}
+  {{if .R.Summary.NotImplemented}}<span class="s none">{{.R.Summary.NotImplemented}} not implemented</span>{{end}}
+  {{if .R.Summary.Planned}}<span class="s none">{{.R.Summary.Planned}} planned</span>{{end}}
+</div>
+
+<h2>Tenants</h2>
+<div class="scroll"><table>
+<thead><tr><th>Namespace</th><th>Admin identity</th><th>Viewer identity</th></tr></thead>
+<tbody>
+{{range .R.Tenants}}<tr><td><code>{{.Namespace}}</code></td><td>{{.Admin}}</td><td>{{if .Viewer}}{{.Viewer}}{{else}}none{{end}}</td></tr>
+{{end}}</tbody>
+</table></div>
+
+{{with .Matrix}}
+<h2>Network matrix</h2>
+<p>Rows are the source tenant, columns the destination. Each cell combines the network checks for that pair, on the same node and across nodes. Within a tenant and to DNS, traffic must work; to another tenant and to the internet, it must be blocked.</p>
+<div class="scroll"><table class="matrix">
+<thead><tr><th class="src">From \ to</th>{{range .Destinations}}<th><code>{{.}}</code></th>{{end}}</tr></thead>
+<tbody>
+{{range .Rows}}<tr><th class="src"><code>{{.Source}}</code></th>{{range .Cells}}<td><div class="cell {{.Class}}" title="{{.Detail}}">{{.Text}}<small>must be {{.Expected}}</small></div></td>{{end}}</tr>
+{{end}}</tbody>
+</table></div>
+{{end}}
+
+{{if .Fixes}}
+<h2>How to fix</h2>
+{{range .Fixes}}<details open><summary>{{.ID}} {{.Title}}</summary><p>{{.Fix}}</p></details>
+{{end}}{{end}}
+
+<h2>Results</h2>
+{{range .Sections}}
+<h3>{{.Title}}</h3>
+<div class="scroll"><table>
+<thead><tr><th>Check</th><th>Status</th><th>Subject</th><th>Decided by</th><th>Detail</th></tr></thead>
+<tbody>
+{{range .Rows}}<tr><td><a href="#{{lower .Check}}">{{.Check}}</a></td><td class="s {{statusClass .Status}}">{{statusMark .Status}} {{.Status}}</td><td>{{.Subject}}</td><td>{{.Layer}}</td><td>{{.Message}}</td></tr>
+{{end}}</tbody>
+</table></div>
+{{end}}
+
+<h2>The checks of this run</h2>
+<p>What each check proves, and what a pass does not prove.</p>
+{{range .R.Checks}}
+<details id="{{lower .ID}}"><summary>{{.ID}} {{.Title}}</summary>
+<dl>
+  <dt>Level, mode, expected</dt><dd>{{.Level}}, {{.Mode}}, {{.Expect}}{{if .Pair}}; counts only when {{.Pair}} passed{{end}}</dd>
+  <dt>Proves</dt><dd>{{.Proves}}</dd>
+  <dt>Does not prove</dt><dd>{{.DoesNotProve}}</dd>
+  <dt>How</dt><dd>{{.How}}</dd>
+  <dt>Fix when it fails</dt><dd>{{.Fix}}</dd>
+</dl>
+</details>
+{{end}}
+
+<footer>
+<p>A pass means that the checker, acting as each tenant, was refused where it had to be and could work where it had to, at the time of this run, on these tenants. It does not prove that the cluster is secure: each check above says what it does not prove.</p>
+<p>Written by bulkhead {{.R.Tool.Version}}. Report format {{.R.APIVersion}}.</p>
+</footer>
+</main>
+</body>
+</html>
