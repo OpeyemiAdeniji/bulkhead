@@ -134,11 +134,8 @@ func listSecrets(ctx context.Context, env *runner.Env, c catalog.Check, a, b ten
 	return blocked(between(a, b), err, LayerRBAC)
 }
 
-// asViewer sends a request as the tenant's viewer. ok is false when the tenant has no viewer.
-func asViewer(ctx context.Context, env *runner.Env, c catalog.Check, t tenant.Tenant, req sandbox.Request, fn func(context.Context, kubernetes.Interface) error) (error, bool) {
-	if t.Viewer == nil {
-		return nil, false
-	}
+// asViewer sends a request as the tenant's viewer. Callers use perViewer, which skips tenants without one.
+func asViewer(ctx context.Context, env *runner.Env, c catalog.Check, t tenant.Tenant, req sandbox.Request, fn func(context.Context, kubernetes.Interface) error) error {
 	req.As, req.Check = t.Viewer.String(), c.ID
 	return do(ctx, env, req, func(ctx context.Context) error {
 		cl, err := client(env, *t.Viewer)
@@ -146,12 +143,12 @@ func asViewer(ctx context.Context, env *runner.Env, c catalog.Check, t tenant.Te
 			return err
 		}
 		return fn(ctx, cl)
-	}), true
+	})
 }
 
 func acc04(ctx context.Context, env *runner.Env, c catalog.Check) []runner.Result {
 	return perViewer(env, func(t tenant.Tenant) runner.Result {
-		err, _ := asViewer(ctx, env, c, t, sandbox.Request{Verb: "get", Kind: "secret", Namespace: t.Namespace, Name: absentName}, func(ctx context.Context, cl kubernetes.Interface) error {
+		err := asViewer(ctx, env, c, t, sandbox.Request{Verb: "get", Kind: "secret", Namespace: t.Namespace, Name: absentName}, func(ctx context.Context, cl kubernetes.Interface) error {
 			_, err := cl.CoreV1().Secrets(t.Namespace).Get(ctx, absentName, metav1.GetOptions{})
 			return err
 		})
@@ -164,7 +161,7 @@ func acc04(ctx context.Context, env *runner.Env, c catalog.Check) []runner.Resul
 
 func acc05(ctx context.Context, env *runner.Env, c catalog.Check) []runner.Result {
 	return perViewer(env, func(t tenant.Tenant) runner.Result {
-		err, _ := asViewer(ctx, env, c, t, sandbox.Request{Verb: "list", Kind: "pods", Namespace: t.Namespace}, func(ctx context.Context, cl kubernetes.Interface) error {
+		err := asViewer(ctx, env, c, t, sandbox.Request{Verb: "list", Kind: "pods", Namespace: t.Namespace}, func(ctx context.Context, cl kubernetes.Interface) error {
 			_, err := cl.CoreV1().Pods(t.Namespace).List(ctx, metav1.ListOptions{Limit: 1})
 			return err
 		})
@@ -416,7 +413,7 @@ func createService(typ corev1.ServiceType) tenantFunc {
 
 // containerMax returns the smallest per-container CPU maximum of the namespace's limit ranges.
 func containerMax(ctx context.Context, env *runner.Env, c catalog.Check, ns string) (*resource.Quantity, error) {
-	var max *resource.Quantity
+	var maximum *resource.Quantity
 	err := do(ctx, env, sandbox.Request{Verb: "list", Kind: "limitranges", Namespace: ns, As: you, Check: c.ID}, func(ctx context.Context) error {
 		l, err := env.Cluster.Client.CoreV1().LimitRanges(ns).List(ctx, metav1.ListOptions{})
 		if err != nil {
@@ -427,29 +424,29 @@ func containerMax(ctx context.Context, env *runner.Env, c catalog.Check, ns stri
 				if item.Type != corev1.LimitTypeContainer {
 					continue
 				}
-				if q, ok := item.Max[corev1.ResourceCPU]; ok && (max == nil || q.Cmp(*max) < 0) {
+				if q, ok := item.Max[corev1.ResourceCPU]; ok && (maximum == nil || q.Cmp(*maximum) < 0) {
 					q := q.DeepCopy()
-					max = &q
+					maximum = &q
 				}
 			}
 		}
 		return nil
 	})
-	return max, err
+	return maximum, err
 }
 
 func podAboveMaximum(ctx context.Context, env *runner.Env, c catalog.Check, t tenant.Tenant) runner.Result {
-	max, err := containerMax(ctx, env, c, t.Namespace)
+	maximum, err := containerMax(ctx, env, c, t.Namespace)
 	if err != nil {
 		return errResult(t.Namespace, err)
 	}
-	if max == nil && env.Sandbox.Mode != sandbox.DryRun {
+	if maximum == nil && env.Sandbox.Mode != sandbox.DryRun {
 		return runner.Result{Status: runner.Fail, Subject: t.Namespace, Message: "no limit range sets a per-container CPU maximum"}
 	}
 	limit := quantity("64")
-	if max != nil {
-		limit = *max
-		limit.Add(*max) // twice the maximum
+	if maximum != nil {
+		limit = *maximum
+		limit.Add(*maximum) // twice the maximum
 	}
 	p := restrictedPod(t.Namespace, "")
 	env.Sandbox.Prepare(&p.ObjectMeta, "too-big")
@@ -462,8 +459,8 @@ func podAboveMaximum(ctx context.Context, env *runner.Env, c catalog.Check, t te
 		return err
 	})
 	res := blocked(t.Namespace, err, LayerLimitRange)
-	if res.Status == runner.Pass && max != nil {
-		res.Message += fmt.Sprintf(" (CPU limit %s, maximum %s)", limit.String(), max.String())
+	if res.Status == runner.Pass && maximum != nil {
+		res.Message += fmt.Sprintf(" (CPU limit %s, maximum %s)", limit.String(), maximum.String())
 	}
 	return res
 }
