@@ -37,9 +37,9 @@ One item of this package waits for the first active check, because only then doe
 
 ## 4. Active checks
 
-- [ ] An end-to-end test that interrupts a run on kind while its test pods exist, and finds nothing left (from work package 2).
-- [ ] Test pods with placement on two nodes, readiness waits and clear errors when the cluster has only one node.
-- [ ] NET-01 to NET-06 (network), in both directions between every pair of tenants.
+- [x] An end-to-end test that interrupts a run on kind while its test pods exist, and finds nothing left (from work package 2). The run stops with exit code 3.
+- [x] Test pods with placement on two nodes, readiness waits (a TCP probe for servers, so ready means listening), clear errors for pods that cannot start (for example ImagePullBackOff), and checks across nodes skipped when the cluster has only one schedulable node. The pods are created as the tenant admin, through the sandbox.
+- [x] NET-01 to NET-06 (network), in both directions between every pair of tenants, on the same node and across nodes. On kind: 16 of 16. Without network policies, exactly the 10 blocked results fail.
 - [ ] RES-01 to RES-05 (noisy neighbour), measured from cgroup v2.
 - [ ] QTA-01, QTA-02, QTA-08 and QTA-09 (the quota with real pods), reading the tenant's quota and limit range instead of fixed numbers.
 - [x] Results of a "blocked" check are only valid when its pair passed: otherwise they are reported as inconclusive and fail the run. The pairs of selected checks are added to the run.

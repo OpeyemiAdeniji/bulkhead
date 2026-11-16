@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/OpeyemiAdeniji/bulkhead/internal/catalog"
-	_ "github.com/OpeyemiAdeniji/bulkhead/internal/checks" // registers the implemented checks
+	"github.com/OpeyemiAdeniji/bulkhead/internal/checks" // also registers the implemented checks
 	"github.com/OpeyemiAdeniji/bulkhead/internal/exitcode"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/kube"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/runner"
@@ -111,7 +111,7 @@ func (o *checkOptions) run(ctx context.Context, w io.Writer) error {
 	return o.execute(ctx, w, runner.WithPairs(selected))
 }
 
-func (o *checkOptions) execute(ctx context.Context, w io.Writer, checks []catalog.Check) error {
+func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []catalog.Check) error {
 	cluster, err := connect(o.kube)
 	if err != nil {
 		return exitcode.Errorf("%v", err)
@@ -166,7 +166,8 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, checks []catalo
 		return err
 	}
 	rep.Run.IdentitiesConfirmed = mode != sandbox.DryRun
-	rep.Results = runner.Run(ctx, env, runner.Options{Checks: checks, CheckTimeout: o.checkTimeout})
+	rep.Results = runner.Run(ctx, env, runner.Options{Checks: selected, CheckTimeout: o.checkTimeout})
+	checks.ForgetRun(sb)
 	if mode == sandbox.DryRun {
 		rep.Requests = sb.Requests()
 	}
