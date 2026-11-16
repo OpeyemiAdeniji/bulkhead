@@ -238,6 +238,9 @@ type state struct {
 	mu     sync.Mutex
 	net    *netFixture
 	netErr error
+	res    *resFixture
+	resErr error
+	quota  *quotaState
 }
 
 var states sync.Map // *sandbox.Sandbox -> *state
