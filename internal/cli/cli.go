@@ -25,7 +25,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		if !errors.As(err, &e) && strings.HasPrefix(err.Error(), "unknown command") {
 			err = exitcode.Usagef("%v", err)
 		}
-		fmt.Fprintln(stderr, "Error:", err)
+		// Nothing is left to report to if stderr itself fails.
+		_, _ = fmt.Fprintln(stderr, "Error:", err)
 	}
 	return exitcode.Of(err)
 }
@@ -58,8 +59,8 @@ func newVersion() *cobra.Command {
 			info := version.Get()
 			switch output {
 			case "text":
-				fmt.Fprintln(cmd.OutOrStdout(), info)
-				return nil
+				_, err := fmt.Fprintln(cmd.OutOrStdout(), info)
+				return err
 			case "json":
 				return writeJSON(cmd.OutOrStdout(), info)
 			}

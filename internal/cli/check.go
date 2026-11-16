@@ -91,13 +91,17 @@ func (o *checkOptions) selected() ([]catalog.Check, error) {
 
 func writeTable(w io.Writer, checks []catalog.Check) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "ID\tLEVEL\tMODE\tEXPECT\tPAIR\tTITLE")
+	if _, err := fmt.Fprintln(tw, "ID\tLEVEL\tMODE\tEXPECT\tPAIR\tTITLE"); err != nil {
+		return err
+	}
 	for _, c := range checks {
 		pair := c.Pair
 		if pair == "" {
 			pair = "-"
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", c.ID, c.Level, c.Mode, c.Expect, pair, c.Title)
+		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", c.ID, c.Level, c.Mode, c.Expect, pair, c.Title); err != nil {
+			return err
+		}
 	}
 	if err := tw.Flush(); err != nil {
 		return err

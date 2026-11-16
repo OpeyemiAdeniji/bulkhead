@@ -54,9 +54,9 @@ const (
 type Expect string
 
 const (
-	// Allowed: the action must work. These checks prove that the test itself works.
+	// Allowed means the action must work. These checks prove that the test itself works.
 	Allowed Expect = "allowed"
-	// Blocked: the action must be refused or fail.
+	// Blocked means the action must be refused or fail.
 	Blocked Expect = "blocked"
 )
 
