@@ -46,10 +46,10 @@ One item of this package waits for the first active check, because only then doe
 
 ## 5. Reports and exit codes
 
-- [ ] A terminal table with the result, the deciding layer and the fix for each failure.
-- [ ] JSON with a published JSON Schema (`schemas/check-report.schema.json`), including the versions, profile and settings of the run.
-- [ ] JUnit XML for CI systems.
-- [ ] SARIF for GitHub code scanning.
+- [x] A terminal table with the result, the deciding layer and the fix for each failure.
+- [x] JSON with a published JSON Schema (`schemas/check-report.schema.json`, `apiVersion: bulkhead.io/v1alpha1`), including the versions, mode, tenants, the text of every check, the requests of a dry run and the exit code. A unit test validates a report with every status, and the end-to-end test validates the report of a real run on kind. The profile is added with work package 7.
+- [x] JUnit XML for CI systems.
+- [x] SARIF 2.1.0 for GitHub code scanning (`docs/check-reports.md`).
 - [ ] An HTML report that can be kept as evidence, with a source by destination matrix for the network checks.
 - [ ] `PolicyReport` objects (`wgpolicyk8s.io`) in the cluster, optional.
 - [ ] Every check maps to the archived Kubernetes multi-tenancy benchmark IDs, the CIS Kubernetes Benchmark and the NSA and CISA hardening guidance where they overlap, after reading those documents.

@@ -78,6 +78,39 @@ expect 0 "a run confirms each identity, and every check passes" \
   "0 fail" "Clean-up: removed 20 test objects" -- \
   check "${TENANTS[@]}"
 
+echo "== reports: one run writes every format"
+reports="$(mktemp -d)"
+# A real run with two failures (alpha may read bravo's secrets): JSON on stdout, JUnit and SARIF to files.
+k -n tenant-bravo create role break-secrets --verb=get,list --resource=secrets > /dev/null
+k -n tenant-bravo create rolebinding break-secrets --role=break-secrets --group=alpha-admins > /dev/null
+"$BIN" check "${TENANTS[@]}" --read-only --category access -o json \
+  --report "junit=$reports/junit.xml" --report "sarif=$reports/out.sarif" > "$reports/report.json" 2> /dev/null
+code=$?
+k -n tenant-bravo delete rolebinding break-secrets > /dev/null
+k -n tenant-bravo delete role break-secrets > /dev/null
+if [ "$code" -eq 1 ] && BULKHEAD_REPORT_FILE="$reports/report.json" go test -count=1 -run TestAReportFileMatchesTheSchema ./internal/report > /dev/null; then
+  pass "the JSON report of a real run matches schemas/check-report.schema.json"
+else
+  fail "the JSON report of a real run does not match the schema (exit code $code)"
+fi
+if python3 - "$reports" << 'EOF'
+import json, sys, xml.etree.ElementTree as ET
+d = sys.argv[1]
+r = json.load(open(d + "/report.json"))
+assert r["exitCode"] == 1 and r["summary"]["fail"] == 2, (r["exitCode"], r["summary"])
+j = ET.parse(d + "/junit.xml").getroot()
+assert int(j.get("failures")) == 2 and int(j.get("tests")) == r["summary"]["total"], j.attrib
+s = json.load(open(d + "/out.sarif"))
+results = s["runs"][0]["results"]
+assert s["version"] == "2.1.0" and len(results) == 2 and {x["ruleId"] for x in results} == {"ACC-02", "ACC-03"}, results
+EOF
+then
+  pass "JUnit and SARIF report the same two failures as the JSON report"
+else
+  fail "JUnit or SARIF disagree with the JSON report"
+fi
+rm -rf "$reports"
+
 expect 0 "a read-only run skips the active checks" \
   "(read-only)" "Every identity was confirmed" "active check, not run in read-only mode" -- \
   check "${TENANTS[@]}" --read-only

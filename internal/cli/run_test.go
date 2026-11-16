@@ -18,6 +18,7 @@ import (
 
 	"github.com/OpeyemiAdeniji/bulkhead/internal/exitcode"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/kube"
+	"github.com/OpeyemiAdeniji/bulkhead/internal/report"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/sandbox"
 )
 
@@ -91,7 +92,7 @@ func TestDryRunSendsNothingAndListsTheRequests(t *testing.T) {
 	if code != exitcode.OK {
 		t.Fatalf("code %d, stderr %q", code, errOut)
 	}
-	var rep report
+	var rep report.Report
 	if err := json.Unmarshal([]byte(out), &rep); err != nil {
 		t.Fatal(err)
 	}
