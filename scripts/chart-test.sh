@@ -84,6 +84,21 @@ expect_refused() {
 
 expect_refused "a Pod Security level that is not restricted or baseline is refused" "podSecurity/level" \
   helm template t "$chart" -f tenants/alpha.yaml --set podSecurity.level=privileged
+# NodeLocal DNSCache pods are allowed by default (GKE answers DNS from them), and the entry can be removed.
+out="$(helm template t "$chart" -f tenants/alpha.yaml 2>&1 || true)"
+if grep -q 'k8s-app: node-local-dns' <<< "$out"; then
+  echo "pass  DNS to NodeLocal DNSCache pods is allowed by default"
+else
+  echo "FAIL  DNS to NodeLocal DNSCache pods is not allowed by default"; failures=$((failures + 1))
+fi
+out="$(helm template t "$chart" -f tenants/alpha.yaml --set 'dns.extraPodLabels=null' 2>&1 || true)"
+if ! grep -q 'node-local-dns' <<< "$out" && grep -q 'k8s-app: kube-dns' <<< "$out"; then
+  echo "pass  dns.extraPodLabels can be emptied, kube-dns stays allowed"
+else
+  echo "FAIL  emptying dns.extraPodLabels did not work"; failures=$((failures + 1))
+fi
+expect_refused "a DNS pod label set that is empty is refused" "extraPodLabels" \
+  helm template t "$chart" -f tenants/alpha.yaml --set-json 'dns.extraPodLabels=[{}]'
 expect_refused "a DNS CIDR that is not a CIDR is refused" "extraCIDRs" \
   helm template t "$chart" -f tenants/alpha.yaml --set 'dns.extraCIDRs[0]=not-a-cidr'
 if out="$(helm template t "$chart" -f tenants/alpha.yaml --set namespacePrefix=team- --set 'dns.extraCIDRs[0]=169.254.20.10/32' 2>&1)" &&

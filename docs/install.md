@@ -2,7 +2,7 @@
 
 This guide installs Bulkhead on a cluster that you already run: Amazon EKS, Google Kubernetes Engine, Azure Kubernetes Service, or any conformant cluster. To try it on your machine first, use the kind demo in the README instead.
 
-**Status of this guide.** Everything here is tested on kind (Kubernetes v1.37.0, Calico v3.33.0, Kyverno v1.19.2). The provider sections are written from the providers' documentation and have **not yet been run on EKS, GKE or AKS**. A run on a cloud cluster is planned in Phase 1 of the [roadmap](roadmap.md). Until then, run the isolation suite on your cluster (step 5) before you rely on the isolation.
+**Status of this guide.** Everything here is tested on kind (Kubernetes v1.37.0, Calico v3.33.0, Kyverno v1.19.2). It has also been followed on **GKE Standard** (Kubernetes 1.36, Dataplane V2, 2026-11-16), where all 41 isolation checks and all 29 live policy checks passed after one fix ([measurements](measurements.md#first-cloud-run-gke-standard-phase-1)). The EKS and AKS sections are written from the providers' documentation and have **not been run yet**. Whatever your cluster, run the isolation suite on it (step 5) before you rely on the isolation.
 
 ## What you install
 
@@ -44,7 +44,7 @@ Bulkhead's network isolation uses the standard `NetworkPolicy` API. A cluster ac
 | Cluster | What enforces network policies |
 |---|---|
 | Amazon EKS | The Amazon VPC CNI with its network policy feature switched on (`enableNetworkPolicy: "true"` in the add-on configuration, VPC CNI 1.14 or newer), or Calico or Cilium |
-| Google Kubernetes Engine | GKE Dataplane V2 (the default on Autopilot), or network policy enforcement switched on for a Standard cluster |
+| Google Kubernetes Engine | GKE Dataplane V2 (the default on Autopilot; `--enable-dataplane-v2` when a Standard cluster is created, which is what was tested), or network policy enforcement switched on for a Standard cluster |
 | Azure Kubernetes Service | A network policy engine chosen when the cluster is created: Azure Network Policy Manager, Calico or Cilium |
 | kubeadm, kind, other clusters | A network plugin that implements `NetworkPolicy`, such as Calico or Cilium |
 
@@ -104,7 +104,7 @@ namespacePrefix: tenant-        # platform namespaces must never start with this
 podSecurity:
   level: restricted             # or baseline
 dns:
-  extraCIDRs: []                # GKE with NodeLocal DNSCache: ["169.254.20.10/32"]
+  extraCIDRs: []                # a DNS cache on a node address, such as ["169.254.20.10/32"] (not tested)
 ```
 
 Then render each tenant file with it, and apply:
@@ -115,7 +115,7 @@ helm template tenant-alpha "oci://$REGISTRY/bulkhead-tenant" --version "$VERSION
 
 Or, from a clone of this repository: `KUBE_CONTEXT=<your context> TENANT_VALUES=cluster-values.yaml make tenants-apply`. Without `KUBE_CONTEXT`, the command applies to the local kind cluster. A GitOps controller can do the same with one application per tenant file (planned with Argo CD in v0.5).
 
-The DNS defaults (`kube-system`, pods labelled `k8s-app: kube-dns`, port 53) match CoreDNS and kube-dns on EKS, GKE, AKS, kubeadm and kind. If your DNS runs elsewhere, set `dns.namespaceLabels`, `dns.podLabels` and `dns.ports`.
+The DNS defaults (`kube-system`, pods labelled `k8s-app: kube-dns` or `k8s-app: node-local-dns`, port 53) match CoreDNS and kube-dns on EKS, GKE, AKS, kubeadm and kind, and NodeLocal DNSCache on GKE, which was switched on in the tested GKE cluster without being asked for. Without the `node-local-dns` entry, tenant DNS fails on such a cluster. If your DNS runs elsewhere, set `dns.namespaceLabels`, `dns.podLabels`, `dns.extraPodLabels` and `dns.ports`.
 
 ## 5. Prove it on your cluster
 
@@ -130,7 +130,8 @@ Today these suites expect the two sample tenants `alpha` and `bravo` from `tenan
 
 ## Known limits on other clusters
 
-- Not run on EKS, GKE or AKS yet (see the status at the top).
+- Run on GKE Standard with Dataplane V2 only. Not run on EKS, AKS, GKE Autopilot or private GKE clusters yet (see the status at the top).
+- The suites send many short requests to the cluster's API. From WSL 2 on one Windows machine, a third of them timed out while Windows itself had no problem ([measurements](measurements.md#first-cloud-run-gke-standard-phase-1)). If you see `Unable to connect to the server` there, run the suites from another machine or from Windows.
 - `protect-platform-objects` must list every identity that changes tenant objects. A GitOps controller, such as Argo CD in v0.5, needs its service account added.
 - On GKE Autopilot, some Kyverno settings are restricted. That is not checked.
 - The isolation suite's noisy neighbour checks were measured on kind, where nodes share one machine. On real nodes they show that limits are enforced, and nothing about node capacity.

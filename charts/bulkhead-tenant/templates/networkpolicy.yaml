@@ -29,6 +29,14 @@ spec:
           podSelector:
             matchLabels:
               {{- toYaml .Values.dns.podLabels | nindent 14 }}
+        {{- range (.Values.dns.extraPodLabels | default list) }}
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml $.Values.dns.namespaceLabels | nindent 14 }}
+          podSelector:
+            matchLabels:
+              {{- toYaml . | nindent 14 }}
+        {{- end }}
         {{- range .Values.dns.extraCIDRs }}
         - ipBlock:
             cidr: {{ . | quote }}

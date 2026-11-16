@@ -21,6 +21,12 @@ dns:
     kubernetes.io/metadata.name: kube-system
   podLabels:
     k8s-app: kube-dns
+  # More DNS pods in the same namespace, one label set each. NodeLocal DNSCache on GKE answers
+  # queries to the DNS service from pods labelled k8s-app: node-local-dns, so without this entry
+  # tenant DNS fails there (measured on GKE 1.36, docs/measurements.md). On clusters without
+  # those pods, the entry matches nothing.
+  extraPodLabels:
+    - k8s-app: node-local-dns
   ports: [53]
   extraCIDRs: []
 
