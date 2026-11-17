@@ -101,13 +101,32 @@ cleanup() {
   done
 }
 
+quota_pods() { k -n "$A" get resourcequota tenant-quota -o jsonpath='{.status.used.pods}' 2> /dev/null; }
+quota_cpu() { k -n "$A" get resourcequota tenant-quota -o jsonpath='{.status.used.requests\.cpu}' 2> /dev/null; }
+
+# wait_quota_free waits until the test pods of tenant A are gone and the quota counts no pod
+# and no CPU. A deletion makes the quota controller recount from a cache that can lag behind,
+# and in one CI run such a late recount lowered the count after the next test had filled the
+# quota, so one pod too many was accepted. Going on only when nothing is left to recount
+# avoids that.
 wait_quota_free() {
-  local used
-  for _ in $(seq 1 30); do
-    used="$(k -n "$A" get resourcequota tenant-quota -o jsonpath='{.status.used.requests\.cpu}' 2> /dev/null)"
-    if [ -z "$used" ] || [ "$used" = "0" ]; then
+  local cpu
+  for _ in $(seq 1 60); do
+    cpu="$(quota_cpu)"
+    if [ -z "$(k -n "$A" get pods -l suite=isolation -o name 2> /dev/null)" ] &&
+      [ "$(quota_pods)" = "0" ] && { [ -z "$cpu" ] || [ "$cpu" = "0" ]; }; then
       return 0
     fi
+    sleep 1
+  done
+  return 1
+}
+
+# wait_quota_pods N waits until the quota counts N pods, so that a test of the limit runs
+# against a settled count.
+wait_quota_pods() {
+  for _ in $(seq 1 30); do
+    [ "$(quota_pods)" = "$1" ] && return 0
     sleep 1
   done
   return 1
@@ -295,7 +314,7 @@ expect_blocked "a LoadBalancer service is rejected" "exceeded quota" k -n "$A" c
 expect_blocked "a container above the tier maximum is rejected" "maximum cpu usage per Container" apply_pod "$A" too-big "$SLEEP_CMD" "$TOO_BIG"
 
 cleanup
-wait_quota_free > /dev/null
+wait_quota_free || fail "quota: the quota did not return to zero after cleanup"
 apply_pod "$A" default-pod "$SLEEP_CMD" > /dev/null
 default_limit="$(k -n "$A" get pod default-pod -o jsonpath='{.spec.containers[0].resources.limits.memory}')"
 if [ "$default_limit" = "100Mi" ]; then
@@ -308,7 +327,7 @@ fi
 # and the quota error for the eleventh must name the pod count. Ten default pods also
 # use the whole CPU request quota (10 x 50m = 500m), so CPU may be named as well.
 cleanup
-wait_quota_free > /dev/null
+wait_quota_free || fail "quota: the quota did not return to zero after cleanup"
 created=0
 for i in $(seq 1 10); do
   apply_pod "$A" "default-$i" "$SLEEP_CMD" > /dev/null 2>&1 && created=$((created + 1))
@@ -318,6 +337,7 @@ if [ "$created" -eq 10 ]; then
 else
   fail "only $created of 10 pods without resources fitted in the small tier"
 fi
+wait_quota_pods 10 || fail "quota: the quota counts $(quota_pods) pods, not the 10 that were created"
 expect_blocked "an eleventh pod is rejected by the pod count of the quota" "pods=" apply_pod "$A" default-11 "$SLEEP_CMD"
 
 echo
