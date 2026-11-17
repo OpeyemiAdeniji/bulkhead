@@ -121,7 +121,9 @@
           "description": "What decided a blocked request.",
           "enum": ["rbac", "pod-security", "admission", "quota", "limit-range", "network-policy", "resource-limits", "unknown"]
         },
-        "duration": { "type": "string" }
+        "duration": { "type": "string" },
+        "from": { "description": "The source of a network result: a tenant namespace.", "type": "string" },
+        "to": { "description": "The destination of a network result: a tenant namespace, dns or internet.", "type": "string" }
       }
     },
     "request": {

@@ -43,6 +43,10 @@ type Result struct {
 	// Layer names what decided a blocked request: rbac, admission, network-policy, quota, limit-range.
 	Layer    string `json:"layer,omitempty"`
 	Duration string `json:"duration,omitempty"`
+	// From and To name the source and destination of network results: a tenant namespace,
+	// or "dns" and "internet". They draw the network matrix of the HTML report.
+	From string `json:"from,omitempty"`
+	To   string `json:"to,omitempty"`
 }
 
 // Env is what a check gets to work with.

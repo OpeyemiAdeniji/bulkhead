@@ -26,7 +26,7 @@ const (
 )
 
 // Formats are the output formats, in the order they are listed in help texts.
-var Formats = []string{"table", "json", "junit", "sarif"}
+var Formats = []string{"table", "json", "junit", "sarif", "html"}
 
 // Report is the result of one run.
 type Report struct {
@@ -149,6 +149,8 @@ func Write(w io.Writer, format string, r *Report) error {
 		return writeJUnit(w, r)
 	case "sarif":
 		return writeSARIF(w, r)
+	case "html":
+		return writeHTML(w, r)
 	}
 	return fmt.Errorf("unknown format %q (known: %s)", format, strings.Join(Formats, ", "))
 }
