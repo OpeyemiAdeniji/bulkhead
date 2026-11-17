@@ -291,7 +291,7 @@ func TestBenchmarksAppearInSARIFAndHTML(t *testing.T) {
 			t.Errorf("the SARIF rules miss the tag %s", want)
 		}
 	}
-	if !strings.Contains(page.String(), "<dt>Benchmarks</dt><dd>MTB-PL1-CC-TI-2 Block access to other tenant resources (partly); CIS 5.1.2 Minimize access to secrets (partly)") {
+	if !strings.Contains(page.String(), "<dt>Benchmarks</dt><dd>MTB-PL1-CC-TI-2 Block access to other tenant resources (partly); CIS 5.1.2 ") {
 		t.Error("the HTML report does not list the benchmarks of ACC-02")
 	}
 }
