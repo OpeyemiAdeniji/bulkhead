@@ -71,7 +71,7 @@ func writeTable(w io.Writer, r *Report) error {
 			seen["header"] = true
 		}
 		seen[res.Check] = true
-		c := r.check(res.Check)
+		c := r.Check(res.Check)
 		fmt.Fprintf(&tail, "  %s %s\n      %s\n", c.ID, c.Title, c.Fix)
 	}
 	if seen["header"] {
@@ -81,6 +81,20 @@ func writeTable(w io.Writer, r *Report) error {
 		fmt.Fprintf(&tail, "Clean-up: removed %d test objects of run %s.", r.Cleanup.Deleted, r.Run.ID)
 		if r.Cleanup.Error != "" {
 			tail.WriteString(" Errors: " + r.Cleanup.Error)
+		}
+		tail.WriteString("\n")
+	}
+	if p := r.PolicyReports; p != nil {
+		if len(p.Written) > 0 {
+			fmt.Fprintf(&tail, "PolicyReports: wrote %s.", strings.Join(p.Written, ", "))
+		} else {
+			tail.WriteString("PolicyReports: none written.")
+		}
+		if p.LeftOut > 0 {
+			fmt.Fprintf(&tail, " Results that name no tenant, so are in no report: %d.", p.LeftOut)
+		}
+		if p.Error != "" {
+			tail.WriteString(" Errors: " + p.Error)
 		}
 		tail.WriteString("\n")
 	}

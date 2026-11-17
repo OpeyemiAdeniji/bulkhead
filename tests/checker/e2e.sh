@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # End-to-end tests of bulkhead check on a real cluster: the safety rules of work package 2 in
 # docs/phase-2-checklist.md. They need the kind cluster with both tenants
-# (make cluster-up tenants-apply) and Go. Usage: tests/checker/e2e.sh (or: make test-checker-e2e)
+# (make cluster-up tenants-apply), Go, and Helm when Kyverno is not installed. Usage: tests/checker/e2e.sh (or: make test-checker-e2e)
 set -uo pipefail
 
 cd "$(dirname "$0")/../.." || exit 1
@@ -61,6 +61,25 @@ leftovers() { k get pods,services,secrets,configmaps,deployments -A -l app.kuber
 
 make checker-build > /dev/null || { echo "the checker does not build"; exit 1; }
 
+echo "== the PolicyReport API"
+# Kyverno serves the PolicyReport API. On a cluster without it (the isolation CI job), a run with
+# --policy-reports must stop before any check; then only the CRD is installed, from the Kyverno
+# chart pinned in examples/kind/kyverno, so that the tests below can store reports.
+installed_crd=0
+if ! k get crd policyreports.wgpolicyk8s.io > /dev/null 2>&1; then
+  expect 3 "without the PolicyReport API, --policy-reports stops before any check" \
+    "does not serve the PolicyReport API" -- \
+    check "${TENANTS[@]}" --policy-reports
+  helm repo add kyverno https://kyverno.github.io/kyverno/ --force-update > /dev/null
+  helm template kyverno kyverno/kyverno --version "$(tr -d '[:space:]' < examples/kind/kyverno/chart-version)" \
+    --show-only charts/crds/templates/wgpolicyk8s.io/wgpolicyk8s.io_policyreports.yaml |
+    k apply --server-side -f - > /dev/null
+  k wait --for=condition=Established crd/policyreports.wgpolicyk8s.io --timeout=60s > /dev/null
+  installed_crd=1
+else
+  echo "skip  the cluster serves the PolicyReport API, so the run without it is not tested here"
+fi
+
 echo "== safety rules on a real cluster"
 # A dry run sends nothing and lists the requests: one identity review per tenant identity.
 expect 0 "a dry run sends nothing and lists its requests" \
@@ -75,8 +94,70 @@ expect 0 "a run confirms each identity, and every check passes" \
   "ACC-02 pass" "GRD-05 pass" "ADM-02 pass tenant-alpha" "refused by pod-security" "refused by quota (tenant-quota)" \
   "refused by limit-range" "NET-04 pass tenant-alpha -> tenant-bravo" "blocked: the connection timed out" \
   "RES-03 pass" "OOMKilled" "QTA-08 pass tenant-alpha" "filled the pod count" \
-  "0 fail" "Clean-up: removed 20 test objects" -- \
-  check "${TENANTS[@]}"
+  "0 fail" "Clean-up: removed 20 test objects" \
+  "PolicyReports: wrote tenant-alpha/bulkhead-check, tenant-bravo/bulkhead-check." -- \
+  check "${TENANTS[@]}" --policy-reports
+
+echo "== PolicyReport objects"
+# reports_match TOTAL FAILS-OF-ALPHA: the two reports hold every result of the last run, once,
+# and the report of tenant alpha counts the given failures.
+reports_match() {
+  k get policyreports -A -l app.kubernetes.io/managed-by=bulkhead-check -o json | python3 -c '
+import json, sys
+total, alpha_fails = int(sys.argv[1]), int(sys.argv[2])
+items = {i["metadata"]["namespace"]: i for i in json.load(sys.stdin)["items"]}
+assert sorted(items) == ["tenant-alpha", "tenant-bravo"], sorted(items)
+assert all(i["metadata"]["name"] == "bulkhead-check" for i in items.values())
+assert len({i["metadata"]["labels"]["bulkhead.io/run-id"] for i in items.values()}) == 1, "two runs"
+held = sum(len(i["results"]) for i in items.values())
+assert held == total, f"the reports hold {held} results, the run had {total}"
+for ns, i in items.items():
+    s = i["summary"]
+    assert sum(s.values()) == len(i["results"]), (ns, s)
+    assert all(r["source"] == "bulkhead" and (r["rule"].startswith(ns) or r["properties"].get("from") == ns) for r in i["results"]), ns
+assert items["tenant-alpha"]["summary"]["fail"] == alpha_fails, items["tenant-alpha"]["summary"]
+' "$1" "$2"
+}
+total="$(grep -oE '^[0-9]+ results:' "$out" | grep -oE '^[0-9]+')"
+if [ -n "$total" ] && reports_match "$total" 0; then
+  pass "the full run stored all $total results in one PolicyReport per tenant, without failures"
+else
+  fail "the PolicyReports of the full run do not match its results"
+fi
+# The tenant admin role of the chart may not change or delete the report.
+if [ "$(k auth can-i delete policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-admins)" = "no" ] &&
+  [ "$(k auth can-i update policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-admins)" = "no" ]; then
+  pass "a tenant admin may not change or delete its PolicyReport"
+else
+  fail "a tenant admin may change or delete its PolicyReport"
+fi
+# Viewers have the built-in view role. Kyverno adds the reading of reports to it; without Kyverno, nothing does.
+if k get clusterrole kyverno:rbac:view:policyreports > /dev/null 2>&1; then
+  if [ "$(k auth can-i get policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-viewers)" = "yes" ]; then
+    pass "with Kyverno, a tenant viewer may read its PolicyReport"
+  else
+    fail "with Kyverno, a tenant viewer may not read its PolicyReport"
+  fi
+else
+  echo "skip  Kyverno is not installed, so no role lets tenant viewers read PolicyReports"
+fi
+# A later run replaces the reports: with alpha able to read bravo's secrets, alpha's report shows the two failures.
+k -n tenant-bravo create role break-secrets --verb=get,list --resource=secrets > /dev/null
+k -n tenant-bravo create rolebinding break-secrets --role=break-secrets --group=alpha-admins > /dev/null
+expect 1 "a later run replaces the PolicyReports" "PolicyReports: wrote tenant-alpha/bulkhead-check" -- \
+  check "${TENANTS[@]}" --category access --policy-reports
+k -n tenant-bravo delete rolebinding break-secrets > /dev/null
+k -n tenant-bravo delete role break-secrets > /dev/null
+total="$(grep -oE '^[0-9]+ results:' "$out" | grep -oE '^[0-9]+')"
+if [ -n "$total" ] && reports_match "$total" 2; then
+  pass "the replaced PolicyReport of tenant alpha shows its two failures"
+else
+  fail "the PolicyReports were not replaced by the later run"
+fi
+expect 2 "--policy-reports is refused in a read-only run" "cannot be combined with --read-only" -- \
+  check "${TENANTS[@]}" --read-only --policy-reports
+k delete policyreports -A -l app.kubernetes.io/managed-by=bulkhead-check > /dev/null
+[ "$installed_crd" -eq 1 ] && k delete crd policyreports.wgpolicyk8s.io > /dev/null
 
 echo "== reports: one run writes every format"
 reports="$(mktemp -d)"

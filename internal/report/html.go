@@ -71,7 +71,7 @@ func writeHTML(w io.Writer, r *Report) error {
 	}
 	byCat := map[catalog.Category]*section{}
 	for _, res := range r.Results {
-		c := r.check(res.Check)
+		c := r.Check(res.Check)
 		s, ok := byCat[c.Category]
 		if !ok {
 			s = &section{Title: sectionTitles[c.Category]}
@@ -88,7 +88,7 @@ func writeHTML(w io.Writer, r *Report) error {
 	for _, res := range r.Results {
 		if !seen[res.Check] && (res.Status == runner.Fail || res.Status == runner.Inconclusive || res.Status == runner.Error) {
 			seen[res.Check] = true
-			d.Fixes = append(d.Fixes, r.check(res.Check))
+			d.Fixes = append(d.Fixes, r.Check(res.Check))
 		}
 	}
 	return htmlPage.Execute(w, d)
