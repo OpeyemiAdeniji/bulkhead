@@ -49,6 +49,17 @@
         "error": { "type": "string" }
       }
     },
+    "policyReports": {
+      "description": "The PolicyReport objects (wgpolicyk8s.io/v1alpha2) the run wrote into the cluster, with --policy-reports.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["written"],
+      "properties": {
+        "written": { "type": "array", "items": { "type": "string", "pattern": "^[a-z0-9-]+/[a-z0-9-]+$" } },
+        "leftOut": { "type": "integer", "minimum": 0 },
+        "error": { "type": "string" }
+      }
+    },
     "summary": {
       "type": "object",
       "additionalProperties": false,

@@ -75,6 +75,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
   <dt>Identities</dt><dd>{{if .R.Run.IdentitiesConfirmed}}every tenant identity was confirmed with the API server (SelfSubjectReview){{else}}not confirmed (dry run){{end}}</dd>
   <dt>Tool</dt><dd>bulkhead {{.R.Tool.Version}} ({{.R.Tool.Commit}})</dd>
   {{if .R.Cleanup}}<dt>Clean-up</dt><dd>{{.R.Cleanup.Deleted}} test objects removed{{if .R.Cleanup.Error}}; errors: {{.R.Cleanup.Error}}{{end}}</dd>{{end}}
+  {{with .R.PolicyReports}}<dt>PolicyReports</dt><dd>{{if .Written}}{{range $i, $w := .Written}}{{if $i}}, {{end}}<code>{{$w}}</code>{{end}}{{else}}none written{{end}}{{if .LeftOut}}; results that name no tenant, so are in no report: {{.LeftOut}}{{end}}{{if .Error}}; errors: {{.Error}}{{end}}</dd>{{end}}
 </dl>
 
 <div class="counts" aria-label="Summary">

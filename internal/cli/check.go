@@ -10,21 +10,24 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/OpeyemiAdeniji/bulkhead/internal/catalog"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/checks" // also registers the implemented checks
 	"github.com/OpeyemiAdeniji/bulkhead/internal/exitcode"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/kube"
+	"github.com/OpeyemiAdeniji/bulkhead/internal/policyreport"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/report"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/runner"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/sandbox"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/tenant"
 )
 
-// connect and impersonate are replaced in tests.
+// connect, impersonate and newDynamic are replaced in tests.
 var (
 	connect     = kube.Connect
 	impersonate = func(c *kube.Cluster) func(kube.Identity) (*kube.Cluster, error) { return c.Impersonate }
+	newDynamic  = func(c *kube.Cluster) (dynamic.Interface, error) { return dynamic.NewForConfig(c.Config) }
 )
 
 type checkOptions struct {
@@ -34,14 +37,15 @@ type checkOptions struct {
 	levels     []string
 	ids        []string
 
-	kube         kube.Options
-	tenants      tenant.Options
-	readOnly     bool
-	dryRun       bool
-	reportSpecs  []string
-	reports      []reportFile
-	timeout      time.Duration
-	checkTimeout time.Duration
+	kube          kube.Options
+	tenants       tenant.Options
+	readOnly      bool
+	dryRun        bool
+	policyReports bool
+	reportSpecs   []string
+	reports       []reportFile
+	timeout       time.Duration
+	checkTimeout  time.Duration
 }
 
 func newCheck() *cobra.Command {
@@ -80,6 +84,7 @@ func newCheck() *cobra.Command {
 	f.BoolVar(&o.tenants.Force, "force-namespaces", false, "allow system namespaces such as kube-system as tenants")
 	f.BoolVar(&o.readOnly, "read-only", false, "run only checks that store nothing (safe on production clusters)")
 	f.BoolVar(&o.dryRun, "dry-run", false, "send nothing; print every request the run would send")
+	f.BoolVar(&o.policyReports, "policy-reports", false, "also store the results in the cluster, as a PolicyReport (wgpolicyk8s.io/v1alpha2) named "+policyreport.Name+" in each tenant namespace")
 	f.DurationVar(&o.timeout, "timeout", 15*time.Minute, "time limit of the whole run")
 	f.DurationVar(&o.checkTimeout, "check-timeout", 3*time.Minute, "time limit of each check")
 	return cmd
@@ -108,6 +113,9 @@ func (o *checkOptions) run(ctx context.Context, w io.Writer) error {
 	}
 	if o.readOnly && o.dryRun {
 		return exitcode.Usagef("--read-only and --dry-run cannot be combined: a dry run sends nothing at all")
+	}
+	if o.policyReports && (o.readOnly || o.dryRun) {
+		return exitcode.Usagef("--policy-reports stores objects in the cluster, so it cannot be combined with --read-only or --dry-run")
 	}
 	if o.timeout <= 0 || o.checkTimeout <= 0 {
 		return exitcode.Usagef("--timeout and --check-timeout must be positive")
@@ -154,6 +162,15 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 		return exitcode.Errorf("%v", err)
 	}
 	rep.Tenants = tenants
+	var dyn dynamic.Interface
+	if o.policyReports {
+		if err := policyreport.Preflight(ctx, cluster.Client, o.tenants.Namespaces); err != nil {
+			return exitcode.Errorf("%v", err)
+		}
+		if dyn, err = newDynamic(cluster); err != nil {
+			return exitcode.Errorf("%v", err)
+		}
+	}
 	env := &runner.Env{Cluster: cluster, Tenants: tenants, Sandbox: sb, Impersonate: impersonate(cluster)}
 
 	// From here on, objects may be created. Clean-up runs once: before the report is printed,
@@ -187,6 +204,7 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 	interrupted := ctx.Err()
 	cleanup()
 	rep.Run.FinishedAt = time.Now().UTC()
+	reportsErr := writePolicyReports(dyn, rep, interrupted)
 
 	// The outcome is decided before anything is written, so every file carries the exit code.
 	var outcome error
@@ -199,6 +217,8 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 	case errors.Is(interrupted, context.DeadlineExceeded):
 		rep.Run.Interrupted = "timeout"
 		outcome = exitcode.Errorf("the run reached its time limit of %s", o.timeout)
+	case reportsErr != nil:
+		outcome = exitcode.Errorf("%v", reportsErr)
 	case mode == sandbox.DryRun:
 	default:
 		if code := runner.ExitCode(rep.Results); code != exitcode.OK {
@@ -214,6 +234,30 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 		return err
 	}
 	return outcome
+}
+
+// writePolicyReports stores the results as PolicyReport objects, with --policy-reports. An
+// interrupted run writes none, so a dashboard never shows the results of half a run as the latest.
+func writePolicyReports(dyn dynamic.Interface, rep *report.Report, interrupted error) error {
+	if dyn == nil {
+		return nil
+	}
+	rep.PolicyReports = &report.PolicyReports{Written: []string{}}
+	if interrupted != nil {
+		rep.PolicyReports.Error = "not written, because the run did not finish"
+		return nil
+	}
+	objs, leftOut := policyreport.Build(rep)
+	rep.PolicyReports.LeftOut = leftOut
+	// A fresh context, like the clean-up: the run's own context may be close to its time limit.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	written, err := policyreport.Write(ctx, dyn, objs)
+	rep.PolicyReports.Written = append(rep.PolicyReports.Written, written...)
+	if err != nil {
+		rep.PolicyReports.Error = err.Error()
+	}
+	return err
 }
 
 func (o *checkOptions) selected(run bool) ([]catalog.Check, error) {

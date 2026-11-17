@@ -34,6 +34,41 @@ jq '.summary, (.results[] | select(.status != "pass") | {check, subject, message
 
 A cluster has no source file. Each SARIF result therefore points to the path `kubernetes/<context>/<namespace>`, and names the namespace as a logical location. Code scanning shows such results without a code snippet. The fingerprint of a result is made from the context, the check and the subject, so the same problem on the same tenant is recognised as one alert across runs.
 
+## PolicyReport objects in the cluster
+
+With `--policy-reports`, the run also stores its results in the cluster, as one `PolicyReport` (`wgpolicyk8s.io/v1alpha2`, the Policy Report API of the Kubernetes Policy working group) named `bulkhead-check` in each tenant namespace. Dashboards and tools that already read these reports, such as the reports Kyverno writes, then show the isolation of each tenant next to the policy results.
+
+```bash
+bulkhead check --tenant tenant-alpha --tenant tenant-bravo --policy-reports
+kubectl get policyreports -A -l app.kubernetes.io/managed-by=bulkhead-check
+```
+
+```text
+NAMESPACE      NAME             KIND        NAME           PASS   FAIL   WARN   ERROR   SKIP   AGE
+tenant-alpha   bulkhead-check   Namespace   tenant-alpha   5      0      0      0       0      1s
+tenant-bravo   bulkhead-check   Namespace   tenant-bravo   3      0      0      0       2      1s
+```
+
+- **Off by default.** It stores objects, so it cannot be combined with `--read-only` or `--dry-run`.
+- **Checked before any check runs.** The run stops at once (exit code 3) when the cluster does not serve the API, or when you may not get, create and update `policyreports` in every tenant namespace. Kyverno installs the API; on a cluster without Kyverno, install its CRD from [wg-policy-prototypes](https://github.com/kubernetes-sigs/wg-policy-prototypes).
+- **Each run replaces the report**, so it always shows the latest run. An interrupted run writes none, so a report never shows half a run. The reports are an output, not test objects: the clean-up of a run and `bulkhead cleanup` leave them alone. Remove them with `kubectl delete policyreports -A -l app.kubernetes.io/managed-by=bulkhead-check`.
+- **A result belongs to the tenant it tested:** the source of a network result, or the tenant its subject starts with. A result between two tenants is in the report of the tenant that acted. The table, JSON and HTML reports name the reports written, and count any result that names no tenant (none of today's checks).
+- **Who can change them.** With the roles of the `bulkhead-tenant` chart, the tenant's viewers and admins may read their report, but not change or delete it; the end-to-end test checks this. With other roles, for example the built-in `admin` role, a tenant may be able to change it, so keep the JSON or HTML report as the record.
+
+Each result maps as follows:
+
+| PolicyReport field | Value |
+|---|---|
+| `source` | `bulkhead` |
+| `policy` | the check ID, for example `NET-04` |
+| `rule` | the subject, for example `tenant-alpha -> tenant-bravo` |
+| `category` | the category of the check, for example `network` |
+| `result` | `pass` and `fail` as they are; `inconclusive` becomes `warn` (the check could not decide, because its pair did not pass either); `error` stays `error`; `skipped` and `not-implemented` become `skip` |
+| `scored` | true for `pass` and `fail` only |
+| `severity` | from the level of the check: `basic` is `high`, `hardened` is `medium`, `research` is `low` |
+| `message` | the message of the result, or else the title of the check |
+| `properties` | `title`, `status` (the status of Bulkhead), `expect`, `level`, `runId`, `docs` (a link to the check in [checks.md](checks.md)), and `layer`, `from` and `to` when the result has them |
+
 ## In GitHub Actions
 
 ```yaml

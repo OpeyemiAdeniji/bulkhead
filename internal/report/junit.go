@@ -59,7 +59,7 @@ func writeJUnit(w io.Writer, r *Report) error {
 	byCategory := map[catalog.Category]*junitSuite{}
 	var order []catalog.Category
 	for _, res := range r.Results {
-		c := r.check(res.Check)
+		c := r.Check(res.Check)
 		s, ok := byCategory[c.Category]
 		if !ok {
 			s = &junitSuite{Name: string(c.Category), Properties: []junitProperty{

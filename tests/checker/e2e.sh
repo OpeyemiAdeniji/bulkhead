@@ -75,8 +75,60 @@ expect 0 "a run confirms each identity, and every check passes" \
   "ACC-02 pass" "GRD-05 pass" "ADM-02 pass tenant-alpha" "refused by pod-security" "refused by quota (tenant-quota)" \
   "refused by limit-range" "NET-04 pass tenant-alpha -> tenant-bravo" "blocked: the connection timed out" \
   "RES-03 pass" "OOMKilled" "QTA-08 pass tenant-alpha" "filled the pod count" \
-  "0 fail" "Clean-up: removed 20 test objects" -- \
-  check "${TENANTS[@]}"
+  "0 fail" "Clean-up: removed 20 test objects" \
+  "PolicyReports: wrote tenant-alpha/bulkhead-check, tenant-bravo/bulkhead-check." -- \
+  check "${TENANTS[@]}" --policy-reports
+
+echo "== PolicyReport objects"
+# reports_match TOTAL FAILS-OF-ALPHA: the two reports hold every result of the last run, once,
+# and the report of tenant alpha counts the given failures.
+reports_match() {
+  k get policyreports -A -l app.kubernetes.io/managed-by=bulkhead-check -o json | python3 -c '
+import json, sys
+total, alpha_fails = int(sys.argv[1]), int(sys.argv[2])
+items = {i["metadata"]["namespace"]: i for i in json.load(sys.stdin)["items"]}
+assert sorted(items) == ["tenant-alpha", "tenant-bravo"], sorted(items)
+assert all(i["metadata"]["name"] == "bulkhead-check" for i in items.values())
+assert len({i["metadata"]["labels"]["bulkhead.io/run-id"] for i in items.values()}) == 1, "two runs"
+held = sum(len(i["results"]) for i in items.values())
+assert held == total, f"the reports hold {held} results, the run had {total}"
+for ns, i in items.items():
+    s = i["summary"]
+    assert sum(s.values()) == len(i["results"]), (ns, s)
+    assert all(r["source"] == "bulkhead" and (r["rule"].startswith(ns) or r["properties"].get("from") == ns) for r in i["results"]), ns
+assert items["tenant-alpha"]["summary"]["fail"] == alpha_fails, items["tenant-alpha"]["summary"]
+' "$1" "$2"
+}
+total="$(grep -oE '^[0-9]+ results:' "$out" | grep -oE '^[0-9]+')"
+if [ -n "$total" ] && reports_match "$total" 0; then
+  pass "the full run stored all $total results in one PolicyReport per tenant, without failures"
+else
+  fail "the PolicyReports of the full run do not match its results"
+fi
+# Tenants may read their report, but not change or delete it (the tenant roles of the chart).
+if [ "$(k auth can-i get policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-viewers)" = "yes" ] &&
+  [ "$(k auth can-i delete policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-admins)" = "no" ] &&
+  [ "$(k auth can-i update policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-admins)" = "no" ]; then
+  pass "a tenant may read its PolicyReport, but not change or delete it"
+else
+  fail "the tenant roles do not protect the PolicyReport"
+fi
+# A later run replaces the reports: with alpha able to read bravo's secrets, alpha's report shows the two failures.
+k -n tenant-bravo create role break-secrets --verb=get,list --resource=secrets > /dev/null
+k -n tenant-bravo create rolebinding break-secrets --role=break-secrets --group=alpha-admins > /dev/null
+expect 1 "a later run replaces the PolicyReports" "PolicyReports: wrote tenant-alpha/bulkhead-check" -- \
+  check "${TENANTS[@]}" --category access --policy-reports
+k -n tenant-bravo delete rolebinding break-secrets > /dev/null
+k -n tenant-bravo delete role break-secrets > /dev/null
+total="$(grep -oE '^[0-9]+ results:' "$out" | grep -oE '^[0-9]+')"
+if [ -n "$total" ] && reports_match "$total" 2; then
+  pass "the replaced PolicyReport of tenant alpha shows its two failures"
+else
+  fail "the PolicyReports were not replaced by the later run"
+fi
+expect 2 "--policy-reports is refused in a read-only run" "cannot be combined with --read-only" -- \
+  check "${TENANTS[@]}" --read-only --policy-reports
+k delete policyreports -A -l app.kubernetes.io/managed-by=bulkhead-check > /dev/null
 
 echo "== reports: one run writes every format"
 reports="$(mktemp -d)"

@@ -117,3 +117,13 @@ func TestHTMLVerdicts(t *testing.T) {
 		t.Error("exit code 3")
 	}
 }
+
+func TestHTMLNamesThePolicyReports(t *testing.T) {
+	page := html(t, sample())
+	for _, want := range []string{"<dt>PolicyReports</dt>", "<code>tenant-alpha/bulkhead-check</code>",
+		"results that name no tenant, so are in no report: 1", "errors: write PolicyReport tenant-bravo/bulkhead-check: forbidden"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the page misses %q", want)
+		}
+	}
+}

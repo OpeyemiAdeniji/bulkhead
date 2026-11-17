@@ -9,15 +9,22 @@ import (
 	"testing"
 
 	authenticationv1 "k8s.io/api/authentication/v1"
+	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	fakediscovery "k8s.io/client-go/discovery/fake"
+	"k8s.io/client-go/dynamic"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/OpeyemiAdeniji/bulkhead/internal/exitcode"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/kube"
+	"github.com/OpeyemiAdeniji/bulkhead/internal/policyreport"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/report"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/sandbox"
 )
@@ -140,12 +147,76 @@ func TestInterruptedCheckCleansUp(t *testing.T) {
 	}
 }
 
+// servePolicyReports makes the fake cluster serve the PolicyReport API, allow every access
+// review, and store reports in a fake dynamic client, which it returns.
+func servePolicyReports(t *testing.T, admin *fake.Clientset) *dynamicfake.FakeDynamicClient {
+	t.Helper()
+	admin.Discovery().(*fakediscovery.FakeDiscovery).Resources = []*metav1.APIResourceList{{
+		GroupVersion: policyreport.GroupVersion,
+		APIResources: []metav1.APIResource{{Name: "policyreports", Namespaced: true, Kind: policyreport.Kind}},
+	}}
+	admin.PrependReactor("create", "selfsubjectaccessreviews", func(a k8stesting.Action) (bool, runtime.Object, error) {
+		r := a.(k8stesting.CreateAction).GetObject().(*authorizationv1.SelfSubjectAccessReview)
+		r.Status.Allowed = true
+		return true, r, nil
+	})
+	dyn := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(),
+		map[schema.GroupVersionResource]string{policyreport.Resource: "PolicyReportList"})
+	old := newDynamic
+	t.Cleanup(func() { newDynamic = old })
+	newDynamic = func(*kube.Cluster) (dynamic.Interface, error) { return dyn, nil }
+	return dyn
+}
+
+func TestPolicyReportsAreWrittenForEveryTenant(t *testing.T) {
+	dyn := servePolicyReports(t, fakeCluster(t, false))
+	code, out, errOut := run(t, "check", "--tenant", "tenant-alpha", "--tenant", "tenant-bravo", "--id", "ACC-02", "--policy-reports", "-o", "json")
+	// The fake identities may do anything, so ACC-02 fails: exit code 1, and the reports say so.
+	if code != exitcode.ChecksFailed {
+		t.Fatalf("code %d, stderr %q", code, errOut)
+	}
+	var rep report.Report
+	if err := json.Unmarshal([]byte(out), &rep); err != nil {
+		t.Fatal(err)
+	}
+	if rep.PolicyReports == nil || strings.Join(rep.PolicyReports.Written, ",") != "tenant-alpha/bulkhead-check,tenant-bravo/bulkhead-check" || rep.PolicyReports.LeftOut != 0 {
+		t.Fatalf("policyReports: %+v", rep.PolicyReports)
+	}
+	total := 0
+	for _, ns := range []string{"tenant-alpha", "tenant-bravo"} {
+		got, err := dyn.Resource(policyreport.Resource).Namespace(ns).Get(context.Background(), policyreport.Name, metav1.GetOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		results, _, _ := unstructured.NestedSlice(got.Object, "results")
+		total += len(results)
+		if fails, _, _ := unstructured.NestedInt64(got.Object, "summary", "fail"); fails == 0 {
+			t.Errorf("%s: the report shows no failure", ns)
+		}
+	}
+	if total != rep.Summary.Total {
+		t.Errorf("the reports hold %d results, the run has %d", total, rep.Summary.Total)
+	}
+}
+
+func TestPolicyReportsNeedTheAPIBeforeAnyCheck(t *testing.T) {
+	admin := fakeCluster(t, false)
+	servePolicyReports(t, admin)
+	admin.Discovery().(*fakediscovery.FakeDiscovery).Resources = nil
+	code, out, errOut := run(t, "check", "--tenant", "tenant-alpha", "--policy-reports")
+	if code != exitcode.Error || !strings.Contains(errOut, "does not serve the PolicyReport API") || out != "" {
+		t.Fatalf("code %d, out %q, stderr %q", code, out, errOut)
+	}
+}
+
 func TestRunUsageErrors(t *testing.T) {
 	for _, args := range [][]string{
 		{"check", "--tenant", "kube-system"},
 		{"check", "--tenant", "a", "--read-only", "--dry-run"},
 		{"check", "--tenant", "a", "--id", "NOPE-01"},
 		{"check", "--tenant", "a", "--timeout", "0s"},
+		{"check", "--tenant", "a", "--policy-reports", "--read-only"},
+		{"check", "--tenant", "a", "--policy-reports", "--dry-run"},
 	} {
 		if code, _, errOut := run(t, args...); code != exitcode.Usage {
 			t.Errorf("%v: code %d (%s), want a usage error", args, code, errOut)

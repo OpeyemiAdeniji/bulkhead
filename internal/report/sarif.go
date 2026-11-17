@@ -109,7 +109,7 @@ func writeSARIF(w io.Writer, r *Report) error {
 				Text:     "Fix: " + c.Fix + "\n\nDoes not prove: " + c.DoesNotProve,
 				Markdown: "**Fix:** " + c.Fix + "\n\n**Does not prove:** " + c.DoesNotProve,
 			},
-			HelpURI: checksDocURL + strings.ToLower(c.ID),
+			HelpURI: CheckDocURL(c.ID),
 			Properties: map[string]any{
 				"category": string(c.Category), "level": string(c.Level), "mode": string(c.Mode), "expect": string(c.Expect),
 				"tags": []string{"kubernetes", "multi-tenancy", string(c.Category)},
@@ -132,7 +132,7 @@ func writeSARIF(w io.Writer, r *Report) error {
 		default:
 			continue
 		}
-		c := r.check(res.Check)
+		c := r.Check(res.Check)
 		ns := namespaceOf(res.Subject)
 		msg := c.Title
 		if res.Subject != "" {

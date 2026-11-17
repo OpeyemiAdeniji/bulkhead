@@ -39,7 +39,9 @@ type Report struct {
 	Results    []runner.Result   `json:"results"`
 	Requests   []sandbox.Request `json:"requests,omitempty"`
 	Cleanup    *Cleanup          `json:"cleanup,omitempty"`
-	Summary    Summary           `json:"summary"`
+	// PolicyReports says which PolicyReport objects the run wrote (--policy-reports).
+	PolicyReports *PolicyReports `json:"policyReports,omitempty"`
+	Summary       Summary        `json:"summary"`
 	// ExitCode is the exit code of the run (docs/adr/0018-checker-in-this-repository.md), so a
 	// CI system that keeps only the file still knows the outcome.
 	ExitCode int `json:"exitCode"`
@@ -72,6 +74,18 @@ type Cleanup struct {
 	Deleted int    `json:"deleted"`
 	Error   string `json:"error,omitempty"`
 }
+
+// PolicyReports says which PolicyReport objects (wgpolicyk8s.io/v1alpha2) the run wrote into
+// the cluster, as namespace/name.
+type PolicyReports struct {
+	Written []string `json:"written"`
+	// LeftOut counts results that name no tenant, and so are in no report.
+	LeftOut int    `json:"leftOut,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// CheckDocURL links to the description of a check in docs/checks.md.
+func CheckDocURL(id string) string { return checksDocURL + strings.ToLower(id) }
 
 // Summary counts the results by status.
 type Summary struct {
@@ -122,8 +136,8 @@ func (s Summary) Line() string {
 	return fmt.Sprintf("%d results: %s", s.Total, strings.Join(parts, ", "))
 }
 
-// check returns the catalogue entry of a result.
-func (r *Report) check(id string) catalog.Check {
+// Check returns the catalogue entry of a check of the run.
+func (r *Report) Check(id string) catalog.Check {
 	for _, c := range r.Checks {
 		if c.ID == id {
 			return c
