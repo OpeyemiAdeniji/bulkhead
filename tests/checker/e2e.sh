@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # End-to-end tests of bulkhead check on a real cluster: the safety rules of work package 2 in
 # docs/phase-2-checklist.md. They need the kind cluster with both tenants
-# (make cluster-up tenants-apply) and Go. Usage: tests/checker/e2e.sh (or: make test-checker-e2e)
+# (make cluster-up tenants-apply), Go, and Helm when Kyverno is not installed. Usage: tests/checker/e2e.sh (or: make test-checker-e2e)
 set -uo pipefail
 
 cd "$(dirname "$0")/../.." || exit 1
@@ -61,6 +61,25 @@ leftovers() { k get pods,services,secrets,configmaps,deployments -A -l app.kuber
 
 make checker-build > /dev/null || { echo "the checker does not build"; exit 1; }
 
+echo "== the PolicyReport API"
+# Kyverno serves the PolicyReport API. On a cluster without it (the isolation CI job), a run with
+# --policy-reports must stop before any check; then only the CRD is installed, from the Kyverno
+# chart pinned in examples/kind/kyverno, so that the tests below can store reports.
+installed_crd=0
+if ! k get crd policyreports.wgpolicyk8s.io > /dev/null 2>&1; then
+  expect 3 "without the PolicyReport API, --policy-reports stops before any check" \
+    "does not serve the PolicyReport API" -- \
+    check "${TENANTS[@]}" --policy-reports
+  helm repo add kyverno https://kyverno.github.io/kyverno/ --force-update > /dev/null
+  helm template kyverno kyverno/kyverno --version "$(tr -d '[:space:]' < examples/kind/kyverno/chart-version)" \
+    --show-only charts/crds/templates/wgpolicyk8s.io/wgpolicyk8s.io_policyreports.yaml |
+    k apply --server-side -f - > /dev/null
+  k wait --for=condition=Established crd/policyreports.wgpolicyk8s.io --timeout=60s > /dev/null
+  installed_crd=1
+else
+  echo "skip  the cluster serves the PolicyReport API, so the run without it is not tested here"
+fi
+
 echo "== safety rules on a real cluster"
 # A dry run sends nothing and lists the requests: one identity review per tenant identity.
 expect 0 "a dry run sends nothing and lists its requests" \
@@ -105,13 +124,22 @@ if [ -n "$total" ] && reports_match "$total" 0; then
 else
   fail "the PolicyReports of the full run do not match its results"
 fi
-# With the tenant roles of the chart, viewers may read their report, and admins may not change or delete it.
-if [ "$(k auth can-i get policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-viewers)" = "yes" ] &&
-  [ "$(k auth can-i delete policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-admins)" = "no" ] &&
+# The tenant admin role of the chart may not change or delete the report.
+if [ "$(k auth can-i delete policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-admins)" = "no" ] &&
   [ "$(k auth can-i update policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-admins)" = "no" ]; then
-  pass "a tenant viewer may read its PolicyReport, and a tenant admin may not change or delete it"
+  pass "a tenant admin may not change or delete its PolicyReport"
 else
-  fail "the tenant roles do not protect the PolicyReport"
+  fail "a tenant admin may change or delete its PolicyReport"
+fi
+# Viewers have the built-in view role. Kyverno adds the reading of reports to it; without Kyverno, nothing does.
+if k get clusterrole kyverno:rbac:view:policyreports > /dev/null 2>&1; then
+  if [ "$(k auth can-i get policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-viewers)" = "yes" ]; then
+    pass "with Kyverno, a tenant viewer may read its PolicyReport"
+  else
+    fail "with Kyverno, a tenant viewer may not read its PolicyReport"
+  fi
+else
+  echo "skip  Kyverno is not installed, so no role lets tenant viewers read PolicyReports"
 fi
 # A later run replaces the reports: with alpha able to read bravo's secrets, alpha's report shows the two failures.
 k -n tenant-bravo create role break-secrets --verb=get,list --resource=secrets > /dev/null
@@ -129,6 +157,7 @@ fi
 expect 2 "--policy-reports is refused in a read-only run" "cannot be combined with --read-only" -- \
   check "${TENANTS[@]}" --read-only --policy-reports
 k delete policyreports -A -l app.kubernetes.io/managed-by=bulkhead-check > /dev/null
+[ "$installed_crd" -eq 1 ] && k delete crd policyreports.wgpolicyk8s.io > /dev/null
 
 echo "== reports: one run writes every format"
 reports="$(mktemp -d)"
