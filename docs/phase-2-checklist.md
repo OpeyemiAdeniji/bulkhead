@@ -52,7 +52,7 @@ One item of this package waits for the first active check, because only then doe
 - [x] SARIF 2.1.0 for GitHub code scanning (`docs/check-reports.md`).
 - [x] An HTML report that can be kept as evidence, with a source by destination matrix for the network checks (including DNS and the internet). One self-contained file, escaped with `html/template`, light and dark, printable.
 - [x] `PolicyReport` objects (`wgpolicyk8s.io`) in the cluster, optional. `--policy-reports` writes one report per tenant namespace, checked before the run; on kind a full run stored all 71 results, a later run replaced them, and without the API the run stops before any check ([check-reports.md](check-reports.md)).
-- [ ] Every check maps to the archived Kubernetes multi-tenancy benchmark IDs, the CIS Kubernetes Benchmark and the NSA and CISA hardening guidance where they overlap, after reading those documents.
+- [x] Every check maps to the archived Kubernetes multi-tenancy benchmark IDs, the CIS Kubernetes Benchmark and the NSA and CISA hardening guidance where they overlap, after reading those documents. [benchmarks.md](benchmarks.md): 9 of 19 multi-tenancy items, 7 of 34 CIS items (section 5) and 10 of 18 NSA and CISA recommendations have a check; the rest are listed as not tested.
 
 ## 6. Beyond the built-in checks
 

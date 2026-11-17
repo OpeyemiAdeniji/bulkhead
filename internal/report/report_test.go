@@ -286,7 +286,7 @@ func TestBenchmarksAppearInSARIFAndHTML(t *testing.T) {
 		t.Fatal(err)
 	}
 	// ACC-02 partly tests CIS 5.1.2 and MTB-PL1-CC-TI-2: both are tags of its rule.
-	for _, want := range []string{`"CIS 5.1.2"`, `"MTB-PL1-CC-TI-2"`} {
+	for _, want := range []string{`"CIS 5.1.2"`, `"MTB-PL1-CC-TI-2"`, `"NSA/CISA Secrets"`, `"NSA/CISA Role-based access control"`} {
 		if !strings.Contains(sarif.String(), want) {
 			t.Errorf("the SARIF rules miss the tag %s", want)
 		}

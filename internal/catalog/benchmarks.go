@@ -13,6 +13,9 @@ const (
 	// CIS is the CIS Kubernetes Benchmark v2.0, section 5 (Policies), the edition kube-bench uses
 	// for Kubernetes 1.34 and 1.35.
 	CIS Source = "cis"
+	// NSA is the Kubernetes Hardening Guide of the NSA and CISA, version 1.2 (August 2022). It
+	// has no item numbers, so an item is named by its section and printed page.
+	NSA Source = "nsa"
 )
 
 // Relation says how much of a benchmark item a check covers.
@@ -122,6 +125,33 @@ func Sources() []SourceInfo {
 				{"5.6.4", "The default namespace should not be used"},
 			},
 		},
+		{
+			Source: NSA,
+			Name:   "NSA and CISA Kubernetes Hardening Guide, version 1.2 (August 2022)",
+			URL:    "https://media.defense.gov/2022/Aug/29/2003066362/-1/-1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF",
+			// The recommendations of the sections that tenants reach, in the guide's order. The
+			// titles are short summaries of the guide's words.
+			Items: []BenchmarkItem{
+				{"Recommendations, p. 2", "Prevent privileged containers"},
+				{"Recommendations, p. 2", "Deny hostPID, hostIPC, hostNetwork and host paths"},
+				{"Recommendations, p. 2", "Reject containers that run as root or allow elevation to root"},
+				{"Non-root containers, p. 9", "Build and run containers as non-root users"},
+				{"Immutable container file systems, p. 10", "Run containers with read-only file systems where possible"},
+				{"Pod security enforcement, p. 12", "Enforce a minimum Pod security level with Pod Security Admission"},
+				{"Protecting Pod service account tokens, p. 12", "Do not mount service account tokens that are not needed"},
+				{"Hardening container environments, p. 13", "Use seccomp, sandboxes or hypervisor-backed containers"},
+				{"Namespaces, p. 14", "Partition resources among teams with namespaces"},
+				{"Network policies, p. 16", "Isolate Pods with network policies, because namespaces are not isolated by default"},
+				{"Network policies, p. 16", "Use a CNI plugin that supports the NetworkPolicy API"},
+				{"Network policies, p. 16", "Use a default policy that denies all ingress and egress traffic"},
+				{"Resource policies, p. 17", "Constrain each Pod or container with a LimitRange"},
+				{"Resource policies, p. 17", "Limit the total use of a namespace with a ResourceQuota"},
+				{"Resource policies, p. 17", "Limit process IDs per node and per Pod"},
+				{"Secrets, p. 20", "Restrict access to Secrets with RBAC"},
+				{"Protecting sensitive cloud infrastructure, p. 21", "Keep Pods away from cloud metadata services"},
+				{"Role-based access control, p. 26", "Give each group only the access it needs, and no access to the resources of other groups"},
+			},
+		},
 	}
 }
 
@@ -137,60 +167,85 @@ var references = map[string][]Reference{
 		ref(MTB, "MTB-PL1-CC-TI-2", "Block access to other tenant resources", Partly),
 		ref(CIS, "5.1.2", "Minimize access to secrets", Partly),
 		ref(CIS, "5.6.1", "Create administrative boundaries between resources using namespaces", Partly),
+		ref(NSA, "Namespaces, p. 14", "Partition resources among teams with namespaces", Partly),
+		ref(NSA, "Secrets, p. 20", "Restrict access to Secrets with RBAC", Partly),
+		ref(NSA, "Role-based access control, p. 26", "Give each group only the access it needs, and no access to the resources of other groups", Partly),
 	},
 	"ACC-03": {
 		ref(MTB, "MTB-PL1-CC-TI-2", "Block access to other tenant resources", Partly),
 		ref(CIS, "5.1.2", "Minimize access to secrets", Partly),
 		ref(CIS, "5.6.1", "Create administrative boundaries between resources using namespaces", Partly),
+		ref(NSA, "Namespaces, p. 14", "Partition resources among teams with namespaces", Partly),
+		ref(NSA, "Secrets, p. 20", "Restrict access to Secrets with RBAC", Partly),
+		ref(NSA, "Role-based access control, p. 26", "Give each group only the access it needs, and no access to the resources of other groups", Partly),
 	},
 	"ACC-04": {
 		ref(CIS, "5.1.2", "Minimize access to secrets", Partly),
+		ref(NSA, "Secrets, p. 20", "Restrict access to Secrets with RBAC", Partly),
 	},
 	"GRD-02": {
 		ref(MTB, "MTB-PL1-BC-CPI-2", "Block Multitenant Resources", Partly),
 		ref(CIS, "5.3.2", "Ensure that all Namespaces have NetworkPolicies defined", Partly),
+		ref(NSA, "Network policies, p. 16", "Use a default policy that denies all ingress and egress traffic", Partly),
 	},
 	"GRD-03": {
 		ref(MTB, "MTB-PL1-CC-TI-1", "Block modification of resource quotas", Partly),
 		ref(MTB, "MTB-PL1-BC-CPI-2", "Block Multitenant Resources", Partly),
+		ref(NSA, "Resource policies, p. 17", "Limit the total use of a namespace with a ResourceQuota", Partly),
 	},
 	"GRD-04": {
 		ref(MTB, "MTB-PL1-BC-CPI-2", "Block Multitenant Resources", Partly),
+		ref(NSA, "Resource policies, p. 17", "Constrain each Pod or container with a LimitRange", Partly),
 	},
 	"GRD-05": {
 		ref(MTB, "MTB-PL2-CC-TI-1", "Block role privilege escalation", Partly),
 		ref(MTB, "MTB-PL2-BC-OPS-3", "Create Role Bindings", Differs),
 		ref(CIS, "5.1.8", "Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster", Partly),
+		ref(NSA, "Role-based access control, p. 26", "Give each group only the access it needs, and no access to the resources of other groups", Partly),
 	},
 	"GRD-06": {
 		ref(CIS, "5.2.1", "Ensure that the cluster has at least one active policy control mechanism in place", Partly),
+		ref(NSA, "Pod security enforcement, p. 12", "Enforce a minimum Pod security level with Pod Security Admission", Partly),
 	},
 	"GRD-10": {
 		ref(MTB, "MTB-PL1-CC-TI-2", "Block access to other tenant resources", Partly),
+		ref(NSA, "Role-based access control, p. 26", "Give each group only the access it needs, and no access to the resources of other groups", Partly),
 	},
 	"ADM-02": {
 		ref(MTB, "MTB-PL1-BC-CPI-5", "Block privileged containers", Tests),
 		ref(CIS, "5.2.2", "Minimize the admission of privileged containers", Tests),
+		ref(NSA, "Recommendations, p. 2", "Prevent privileged containers", Tests),
+		ref(NSA, "Pod security enforcement, p. 12", "Enforce a minimum Pod security level with Pod Security Admission", Partly),
 	},
 	"NET-04": {
 		ref(CIS, "5.3.1", "Ensure that the CNI in use supports NetworkPolicies", Tests),
 		ref(CIS, "5.3.2", "Ensure that all Namespaces have NetworkPolicies defined", Partly),
+		ref(NSA, "Network policies, p. 16", "Isolate Pods with network policies, because namespaces are not isolated by default", Tests),
+		ref(NSA, "Network policies, p. 16", "Use a CNI plugin that supports the NetworkPolicy API", Tests),
 	},
 	"NET-05": {
 		ref(CIS, "5.3.1", "Ensure that the CNI in use supports NetworkPolicies", Tests),
 		ref(CIS, "5.3.2", "Ensure that all Namespaces have NetworkPolicies defined", Partly),
+		ref(NSA, "Network policies, p. 16", "Isolate Pods with network policies, because namespaces are not isolated by default", Tests),
+		ref(NSA, "Network policies, p. 16", "Use a CNI plugin that supports the NetworkPolicy API", Tests),
 	},
 	"NET-06": {
 		ref(CIS, "5.3.2", "Ensure that all Namespaces have NetworkPolicies defined", Partly),
+		ref(NSA, "Network policies, p. 16", "Use a default policy that denies all ingress and egress traffic", Partly),
 	},
 	"QTA-02": {
 		ref(MTB, "MTB-PL1-CC-FNS-1", "Configure namespace resource quotas", Partly),
+		ref(NSA, "Resource policies, p. 17", "Limit the total use of a namespace with a ResourceQuota", Tests),
 	},
 	"QTA-04": {
 		ref(MTB, "MTB-PL1-BC-HI-1", "Block use of NodePort services", Tests),
 	},
+	"QTA-06": {
+		ref(NSA, "Resource policies, p. 17", "Constrain each Pod or container with a LimitRange", Tests),
+	},
 	"QTA-09": {
 		ref(MTB, "MTB-PL1-CC-FNS-2", "Configure namespace object limits", Partly),
+		ref(NSA, "Resource policies, p. 17", "Limit the total use of a namespace with a ResourceQuota", Partly),
 	},
 }
 

@@ -44,7 +44,7 @@ The benchmarks were archived in 2023, and their README said they were not ready 
 
 Source: https://www.cisecurity.org/benchmark/kubernetes
 
-The IDs and titles are those of section 5 (Policies) of the CIS Kubernetes Benchmark v2.0, as listed in the `cis-2.0` configuration of kube-bench, which uses that edition for Kubernetes 1.34 and 1.35. Sections 1 to 4 are about the control plane and the nodes, which tenants do not reach, and are not mapped. The full benchmark is available from the Center for Internet Security.
+The IDs and titles are those of section 5 (Policies) of the CIS Kubernetes Benchmark v2.0, as listed in the `cis-2.0` configuration of kube-bench, which uses that edition for Kubernetes 1.34 and 1.35. Sections 1 to 4 are about the control plane and the nodes, which tenants do not reach, and are not mapped. The full benchmark is available from CIS.
 
 | Item | Title | Checks |
 |---|---|---|
@@ -84,3 +84,32 @@ The IDs and titles are those of section 5 (Policies) of the CIS Kubernetes Bench
 | 5.6.4 | The default namespace should not be used | not tested |
 
 7 of 34 items have at least one check.
+
+## NSA and CISA Kubernetes Hardening Guide, version 1.2 (August 2022)
+
+Source: https://media.defense.gov/2022/Aug/29/2003066362/-1/-1/0/CTR_KUBERNETES_HARDENING_GUIDANCE_1.2_20220829.PDF
+
+The guide has no item numbers, so each item is named by its section and the page number printed in the guide, and its title summarises one recommendation of that section. The items are the recommendations of the parts that tenants reach: Pod security, namespaces, network policies, resource policies, access to Secrets, cloud metadata and access control. The control plane, etcd, encryption, authentication methods, logging and upgrades are for cluster administrators and are not mapped. The guide's site refuses automated downloads; open the link in a browser.
+
+| Item | Title | Checks |
+|---|---|---|
+| Recommendations, p. 2 | Prevent privileged containers | [ADM-02](checks.md#adm-02) (tests) |
+| Recommendations, p. 2 | Deny hostPID, hostIPC, hostNetwork and host paths | not tested |
+| Recommendations, p. 2 | Reject containers that run as root or allow elevation to root | not tested |
+| Non-root containers, p. 9 | Build and run containers as non-root users | not tested |
+| Immutable container file systems, p. 10 | Run containers with read-only file systems where possible | not tested |
+| Pod security enforcement, p. 12 | Enforce a minimum Pod security level with Pod Security Admission | [GRD-06](checks.md#grd-06) (partly), [ADM-02](checks.md#adm-02) (partly) |
+| Protecting Pod service account tokens, p. 12 | Do not mount service account tokens that are not needed | not tested |
+| Hardening container environments, p. 13 | Use seccomp, sandboxes or hypervisor-backed containers | not tested |
+| Namespaces, p. 14 | Partition resources among teams with namespaces | [ACC-02](checks.md#acc-02) (partly), [ACC-03](checks.md#acc-03) (partly) |
+| Network policies, p. 16 | Isolate Pods with network policies, because namespaces are not isolated by default | [NET-04](checks.md#net-04) (tests), [NET-05](checks.md#net-05) (tests) |
+| Network policies, p. 16 | Use a CNI plugin that supports the NetworkPolicy API | [NET-04](checks.md#net-04) (tests), [NET-05](checks.md#net-05) (tests) |
+| Network policies, p. 16 | Use a default policy that denies all ingress and egress traffic | [GRD-02](checks.md#grd-02) (partly), [NET-06](checks.md#net-06) (partly) |
+| Resource policies, p. 17 | Constrain each Pod or container with a LimitRange | [GRD-04](checks.md#grd-04) (partly), [QTA-06](checks.md#qta-06) (tests) |
+| Resource policies, p. 17 | Limit the total use of a namespace with a ResourceQuota | [GRD-03](checks.md#grd-03) (partly), [QTA-02](checks.md#qta-02) (tests), [QTA-09](checks.md#qta-09) (partly) |
+| Resource policies, p. 17 | Limit process IDs per node and per Pod | not tested |
+| Secrets, p. 20 | Restrict access to Secrets with RBAC | [ACC-02](checks.md#acc-02) (partly), [ACC-03](checks.md#acc-03) (partly), [ACC-04](checks.md#acc-04) (partly) |
+| Protecting sensitive cloud infrastructure, p. 21 | Keep Pods away from cloud metadata services | not tested |
+| Role-based access control, p. 26 | Give each group only the access it needs, and no access to the resources of other groups | [ACC-02](checks.md#acc-02) (partly), [ACC-03](checks.md#acc-03) (partly), [GRD-05](checks.md#grd-05) (partly), [GRD-10](checks.md#grd-10) (partly) |
+
+10 of 18 items have at least one check.

@@ -134,7 +134,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
   <dt>Does not prove</dt><dd>{{.DoesNotProve}}</dd>
   <dt>How</dt><dd>{{.How}}</dd>
   <dt>Fix when it fails</dt><dd>{{.Fix}}</dd>
-  {{if .References}}<dt>Benchmarks</dt><dd>{{range $i, $r := .References}}{{if $i}}; {{end}}{{if eq $r.Source "cis"}}CIS {{end}}{{$r.ID}} {{$r.Title}} ({{$r.Relation}}){{end}}</dd>{{end}}
+  {{if .References}}<dt>Benchmarks</dt><dd>{{range $i, $r := .References}}{{if $i}}; {{end}}{{if eq $r.Source "cis"}}CIS {{else if eq $r.Source "nsa"}}NSA/CISA {{end}}{{$r.ID}} {{$r.Title}} ({{$r.Relation}}){{end}}</dd>{{end}}
 </dl>
 </details>
 {{end}}

@@ -108,11 +108,21 @@ func ruleTags(c catalog.Check) []string {
 		switch ref.Source {
 		case catalog.CIS:
 			tags = append(tags, "CIS "+ref.ID)
+		case catalog.NSA:
+			// The section without its page, for example "NSA/CISA Network policies".
+			section, _, _ := strings.Cut(ref.ID, ",")
+			tags = append(tags, "NSA/CISA "+section)
 		default:
 			tags = append(tags, ref.ID)
 		}
 	}
-	return slices.Compact(tags)
+	// Two items of one section give the same tag once.
+	seen := map[string]bool{}
+	return slices.DeleteFunc(tags, func(t string) bool {
+		dup := seen[t]
+		seen[t] = true
+		return dup
+	})
 }
 
 func writeSARIF(w io.Writer, r *Report) error {

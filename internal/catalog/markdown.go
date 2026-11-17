@@ -66,7 +66,7 @@ func Markdown() string {
 }
 
 // sourceLabel is the short name of each benchmark in the pages.
-var sourceLabel = map[Source]string{MTB: "Multi-tenancy benchmark", CIS: "CIS"}
+var sourceLabel = map[Source]string{MTB: "Multi-tenancy benchmark", CIS: "CIS", NSA: "NSA/CISA"}
 
 // BenchmarksMarkdown renders the page docs/benchmarks.md: for each benchmark, every item and
 // the checks that test it.
@@ -116,7 +116,11 @@ var sourceNotes = map[Source]string{
 		"The source gives the ID MTB-PL1-BC-HI-1 to two tests (host path volumes and NodePort services), so the title tells them apart. " +
 		"Two level 2 items ask that tenants may create their own role bindings and network policies. Bulkhead's tenant admin may not create role bindings, by design (GRD-05), because a binding to the cluster role `admin` is a way to escalate.\n\n",
 	CIS: "The IDs and titles are those of section 5 (Policies) of the CIS Kubernetes Benchmark v2.0, as listed in the `cis-2.0` configuration of kube-bench, which uses that edition for Kubernetes 1.34 and 1.35. " +
-		"Sections 1 to 4 are about the control plane and the nodes, which tenants do not reach, and are not mapped. The full benchmark is available from the Center for Internet Security.\n\n",
+		"Sections 1 to 4 are about the control plane and the nodes, which tenants do not reach, and are not mapped. The full benchmark is available from CIS.\n\n",
+	NSA: "The guide has no item numbers, so each item is named by its section and the page number printed in the guide, and its title summarises one recommendation of that section. " +
+		"The items are the recommendations of the parts that tenants reach: Pod security, namespaces, network policies, resource policies, access to Secrets, cloud metadata and access control. " +
+		"The control plane, etcd, encryption, authentication methods, logging and upgrades are for cluster administrators and are not mapped. " +
+		"The guide's site refuses automated downloads; open the link in a browser.\n\n",
 }
 
 func anchor(id string) string { return strings.ToLower(id) }

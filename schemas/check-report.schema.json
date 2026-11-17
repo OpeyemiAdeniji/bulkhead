@@ -125,7 +125,7 @@
             "additionalProperties": false,
             "required": ["source", "id", "title", "relation"],
             "properties": {
-              "source": { "enum": ["mtb", "cis"] },
+              "source": { "enum": ["mtb", "cis", "nsa"] },
               "id": { "type": "string", "minLength": 1 },
               "title": { "type": "string", "minLength": 1 },
               "relation": { "enum": ["tests", "partly", "differs"] }

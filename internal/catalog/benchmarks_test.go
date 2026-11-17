@@ -9,6 +9,7 @@ import (
 var itemID = map[Source]*regexp.Regexp{
 	MTB: regexp.MustCompile(`^MTB-PL[12]-(CC|BC)-[A-Z]+-[0-9]+$`),
 	CIS: regexp.MustCompile(`^5\.[1-6]\.[0-9]+$`),
+	NSA: regexp.MustCompile(`^[A-Z][A-Za-z -]+, p\. [0-9]+$`),
 }
 
 func TestEveryBenchmarkItemIsWellFormed(t *testing.T) {
@@ -85,6 +86,8 @@ func TestBenchmarksPage(t *testing.T) {
 		"| MTB-PL2-BC-OPS-3 | Create Role Bindings | [GRD-05](checks.md#grd-05) (differs) |",
 		"| MTB-PL1-BC-HI-4 | Block use of host PID | not tested |",
 		"| 5.3.1 | Ensure that the CNI in use supports NetworkPolicies | [NET-04](checks.md#net-04) (tests), [NET-05](checks.md#net-05) (tests) |",
+		"| Recommendations, p. 2 | Prevent privileged containers | [ADM-02](checks.md#adm-02) (tests) |",
+		"| Protecting sensitive cloud infrastructure, p. 21 | Keep Pods away from cloud metadata services | not tested |",
 	} {
 		if !strings.Contains(md, want) {
 			t.Errorf("the page misses %q", want)
