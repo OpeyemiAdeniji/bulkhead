@@ -75,12 +75,17 @@ type Check struct {
 	DoesNotProve string `json:"doesNotProve"`
 	How          string `json:"how"`
 	Fix          string `json:"fix"`
+	// References are the items of published benchmarks the check tests (benchmarks.go).
+	References []Reference `json:"references,omitempty"`
 }
 
 // All returns a copy of every check, sorted by category order and then by ID.
 func All() []Check {
 	out := make([]Check, len(checks))
 	copy(out, checks)
+	for i := range out {
+		out[i].References = referencesOf(out[i].ID)
+	}
 	order := map[Category]int{}
 	for i, c := range Categories() {
 		order[c] = i
@@ -98,6 +103,7 @@ func All() []Check {
 func Get(id string) (Check, bool) {
 	for _, c := range checks {
 		if strings.EqualFold(c.ID, id) {
+			c.References = referencesOf(c.ID)
 			return c, true
 		}
 	}

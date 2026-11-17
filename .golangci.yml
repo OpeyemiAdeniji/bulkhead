@@ -12,6 +12,12 @@ linters:
   settings:
     misspell:
       locale: UK
+  exclusions:
+    rules:
+      # The titles of benchmark items are quoted as published, in US spelling ("Minimize").
+      - path: internal/catalog/benchmarks(_test)?\.go
+        linters:
+          - misspell
 
 formatters:
   enable:

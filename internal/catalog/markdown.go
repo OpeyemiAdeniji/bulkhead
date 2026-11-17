@@ -54,8 +54,73 @@ func Markdown() string {
 		fmt.Fprintf(&b, "- **Does not prove:** %s\n", c.DoesNotProve)
 		fmt.Fprintf(&b, "- **How:** %s\n", c.How)
 		fmt.Fprintf(&b, "- **Fix when it fails:** %s\n", c.Fix)
+		if len(c.References) > 0 {
+			parts := make([]string, 0, len(c.References))
+			for _, r := range c.References {
+				parts = append(parts, fmt.Sprintf("%s %s %s (%s)", sourceLabel[r.Source], r.ID, r.Title, r.Relation))
+			}
+			fmt.Fprintf(&b, "- **Benchmarks** ([mapping](benchmarks.md)): %s\n", strings.Join(parts, "; "))
+		}
 	}
 	return b.String()
+}
+
+// sourceLabel is the short name of each benchmark in the pages.
+var sourceLabel = map[Source]string{MTB: "Multi-tenancy benchmark", CIS: "CIS", NSA: "NSA/CISA"}
+
+// BenchmarksMarkdown renders the page docs/benchmarks.md: for each benchmark, every item and
+// the checks that test it.
+func BenchmarksMarkdown() string {
+	var b strings.Builder
+	b.WriteString("<!-- Generated from internal/catalog by `make checks-doc`. Do not edit by hand. -->\n\n")
+	b.WriteString("# The checks and published benchmarks\n\n")
+	b.WriteString("This page links the checks of `bulkhead check` ([checks.md](checks.md)) to the items of published benchmarks, for readers who know them. ")
+	b.WriteString("It was made by reading each item and each check, and it maps only where they overlap.\n\n")
+	b.WriteString("- **tests:** the check tests the behaviour the item asks for, on the tenants under test.\n")
+	b.WriteString("- **partly:** the check tests a part of it. For example, a check that a tenant cannot read another tenant's secrets is a part of an item about all of another tenant's objects.\n")
+	b.WriteString("- **differs:** Bulkhead deliberately blocks what the item asks to allow.\n\n")
+	b.WriteString("A pass is evidence for an item on the cluster and the tenants tested, not a certification. ")
+	b.WriteString("Most CIS items are about configuration that a person reviews (\"Manual\" in the benchmark), and the checks test the behaviour that such configuration should produce, from the tenant's side. ")
+	b.WriteString("An item without a check is not tested by Bulkhead.\n")
+
+	all := All()
+	for _, src := range Sources() {
+		fmt.Fprintf(&b, "\n## %s\n\nSource: %s\n\n", src.Name, src.URL)
+		b.WriteString(sourceNotes[src.Source])
+		b.WriteString("| Item | Title | Checks |\n|---|---|---|\n")
+		tested := 0
+		for _, item := range src.Items {
+			var hits []string
+			for _, c := range all {
+				for _, r := range c.References {
+					if r.Source == src.Source && r.ID == item.ID && r.Title == item.Title {
+						hits = append(hits, fmt.Sprintf("[%s](checks.md#%s) (%s)", c.ID, anchor(c.ID), r.Relation))
+					}
+				}
+			}
+			cell := "not tested"
+			if len(hits) > 0 {
+				cell = strings.Join(hits, ", ")
+				tested++
+			}
+			fmt.Fprintf(&b, "| %s | %s | %s |\n", item.ID, escape(item.Title), cell)
+		}
+		fmt.Fprintf(&b, "\n%d of %d items have at least one check.\n", tested, len(src.Items))
+	}
+	return b.String()
+}
+
+// sourceNotes say how each benchmark was read, and what to know about it.
+var sourceNotes = map[Source]string{
+	MTB: "The benchmarks were archived in 2023, and their README said they were not ready for use. The items are taken from the `config.yaml` of each test of `kubectl-mtb`. " +
+		"The source gives the ID MTB-PL1-BC-HI-1 to two tests (host path volumes and NodePort services), so the title tells them apart. " +
+		"Two level 2 items ask that tenants may create their own role bindings and network policies. Bulkhead's tenant admin may not create role bindings, by design (GRD-05), because a binding to the cluster role `admin` is a way to escalate.\n\n",
+	CIS: "The IDs and titles are those of section 5 (Policies) of the CIS Kubernetes Benchmark v2.0, as listed in the `cis-2.0` configuration of kube-bench, which uses that edition for Kubernetes 1.34 and 1.35. " +
+		"Sections 1 to 4 are about the control plane and the nodes, which tenants do not reach, and are not mapped. The full benchmark is available from CIS.\n\n",
+	NSA: "The guide has no item numbers, so each item is named by its section and the page number printed in the guide, and its title summarises one recommendation of that section. " +
+		"The items are the recommendations of the parts that tenants reach: Pod security, namespaces, network policies, resource policies, access to Secrets, cloud metadata and access control. " +
+		"The control plane, etcd, encryption, authentication methods, logging and upgrades are for cluster administrators and are not mapped. " +
+		"The guide's site refuses automated downloads; open the link in a browser.\n\n",
 }
 
 func anchor(id string) string { return strings.ToLower(id) }

@@ -276,3 +276,22 @@ func TestUnknownFormat(t *testing.T) {
 		t.Error("ValidFormat")
 	}
 }
+
+func TestBenchmarksAppearInSARIFAndHTML(t *testing.T) {
+	var sarif, page bytes.Buffer
+	if err := report.Write(&sarif, "sarif", sample()); err != nil {
+		t.Fatal(err)
+	}
+	if err := report.Write(&page, "html", sample()); err != nil {
+		t.Fatal(err)
+	}
+	// ACC-02 partly tests CIS 5.1.2 and MTB-PL1-CC-TI-2: both are tags of its rule.
+	for _, want := range []string{`"CIS 5.1.2"`, `"MTB-PL1-CC-TI-2"`, `"NSA/CISA Secrets"`, `"NSA/CISA Role-based access control"`} {
+		if !strings.Contains(sarif.String(), want) {
+			t.Errorf("the SARIF rules miss the tag %s", want)
+		}
+	}
+	if !strings.Contains(page.String(), "<dt>Benchmarks</dt><dd>MTB-PL1-CC-TI-2 Block access to other tenant resources (partly); CIS 5.1.2 ") {
+		t.Error("the HTML report does not list the benchmarks of ACC-02")
+	}
+}

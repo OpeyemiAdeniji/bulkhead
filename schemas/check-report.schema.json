@@ -116,7 +116,22 @@
         "proves": { "type": "string" },
         "doesNotProve": { "type": "string" },
         "how": { "type": "string" },
-        "fix": { "type": "string" }
+        "fix": { "type": "string" },
+        "references": {
+          "description": "Items of published benchmarks the check tests (docs/benchmarks.md).",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "id", "title", "relation"],
+            "properties": {
+              "source": { "enum": ["mtb", "cis", "nsa"] },
+              "id": { "type": "string", "minLength": 1 },
+              "title": { "type": "string", "minLength": 1 },
+              "relation": { "enum": ["tests", "partly", "differs"] }
+            }
+          }
+        }
       }
     },
     "result": {
