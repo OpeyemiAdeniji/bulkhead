@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"slices"
 	"strings"
 
+	"github.com/OpeyemiAdeniji/bulkhead/internal/catalog"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/runner"
 )
 
@@ -95,6 +97,24 @@ type sarifLogical struct {
 	Kind string `json:"kind"`
 }
 
+// ruleTags are the tags of a rule: the topic, the category, and each benchmark item the check
+// tests or partly tests, for example "CIS 5.2.2" (code scanning can filter alerts by tag).
+func ruleTags(c catalog.Check) []string {
+	tags := []string{"kubernetes", "multi-tenancy", string(c.Category)}
+	for _, ref := range c.References {
+		if ref.Relation == catalog.Differs {
+			continue
+		}
+		switch ref.Source {
+		case catalog.CIS:
+			tags = append(tags, "CIS "+ref.ID)
+		default:
+			tags = append(tags, ref.ID)
+		}
+	}
+	return slices.Compact(tags)
+}
+
 func writeSARIF(w io.Writer, r *Report) error {
 	driver := sarifDriver{Name: "bulkhead check", Version: r.Tool.Version, InformationURI: projectURL}
 	index := map[string]int{}
@@ -112,7 +132,7 @@ func writeSARIF(w io.Writer, r *Report) error {
 			HelpURI: CheckDocURL(c.ID),
 			Properties: map[string]any{
 				"category": string(c.Category), "level": string(c.Level), "mode": string(c.Mode), "expect": string(c.Expect),
-				"tags": []string{"kubernetes", "multi-tenancy", string(c.Category)},
+				"tags": ruleTags(c),
 			},
 		})
 	}

@@ -75,6 +75,7 @@ Level basic, read-only, expected result: blocked. Pair: [ACC-01](#acc-01).
 - **Does not prove:** That no other identity in tenant A (a service account, a controller acting for it) can read it. Only the identities given to the checker are tested.
 - **How:** As the admin of tenant A, get a secret in tenant B. The answer must be "forbidden".
 - **Fix when it fails:** Remove role bindings in tenant B that include tenant A's groups, and cluster role bindings that grant secrets in every namespace.
+- **Benchmarks** ([mapping](benchmarks.md)): Multi-tenancy benchmark MTB-PL1-CC-TI-2 Block access to other tenant resources (partly); CIS 5.1.2 Minimize access to secrets (partly); CIS 5.6.1 Create administrative boundaries between resources using namespaces (partly)
 
 ### ACC-03
 
@@ -86,6 +87,7 @@ Level basic, read-only, expected result: blocked. Pair: [ACC-01](#acc-01).
 - **Does not prove:** That watch requests are refused. They are covered by the same access rule in Kubernetes, but are not sent.
 - **How:** As the admin of tenant A, list secrets in tenant B. The answer must be "forbidden".
 - **Fix when it fails:** As for ACC-02.
+- **Benchmarks** ([mapping](benchmarks.md)): Multi-tenancy benchmark MTB-PL1-CC-TI-2 Block access to other tenant resources (partly); CIS 5.1.2 Minimize access to secrets (partly); CIS 5.6.1 Create administrative boundaries between resources using namespaces (partly)
 
 ### ACC-04
 
@@ -97,6 +99,7 @@ Level basic, read-only, expected result: blocked. Pair: [ACC-05](#acc-05).
 - **Does not prove:** That viewers cannot see secret values in other places, for example environment variables in pod specs.
 - **How:** As a tenant viewer, get a secret in its own namespace. The answer must be "forbidden".
 - **Fix when it fails:** Bind viewers to a role without secrets. The built-in "view" role already excludes them.
+- **Benchmarks** ([mapping](benchmarks.md)): CIS 5.1.2 Minimize access to secrets (partly)
 
 ### ACC-05
 
@@ -132,6 +135,7 @@ Level basic, read-only, expected result: blocked. Pair: [GRD-01](#grd-01).
 - **Does not prove:** That the tenant cannot add a network policy that opens traffic. Creating policies may be allowed on purpose.
 - **How:** As the tenant admin, delete each platform network policy of tenant A as a server-side dry run.
 - **Fix when it fails:** Do not give tenant admins delete rights on network policies, or protect platform objects with an admission policy (Bulkhead's protect-platform-objects).
+- **Benchmarks** ([mapping](benchmarks.md)): Multi-tenancy benchmark MTB-PL1-BC-CPI-2 Block Multitenant Resources (partly); CIS 5.3.2 Ensure that all Namespaces have NetworkPolicies defined (partly)
 
 ### GRD-03
 
@@ -143,6 +147,7 @@ Level basic, read-only, expected result: blocked. Pair: [GRD-01](#grd-01).
 - **Does not prove:** That the quota covers every resource that matters.
 - **How:** As the tenant admin, delete each resource quota of tenant A as a server-side dry run.
 - **Fix when it fails:** Do not give tenant admins write rights on resource quotas.
+- **Benchmarks** ([mapping](benchmarks.md)): Multi-tenancy benchmark MTB-PL1-CC-TI-1 Block modification of resource quotas (partly); Multi-tenancy benchmark MTB-PL1-BC-CPI-2 Block Multitenant Resources (partly)
 
 ### GRD-04
 
@@ -154,6 +159,7 @@ Level basic, read-only, expected result: blocked. Pair: [GRD-01](#grd-01).
 - **Does not prove:** That the limits are sensible for the node sizes.
 - **How:** As the tenant admin, delete each limit range of tenant A as a server-side dry run.
 - **Fix when it fails:** Do not give tenant admins write rights on limit ranges.
+- **Benchmarks** ([mapping](benchmarks.md)): Multi-tenancy benchmark MTB-PL1-BC-CPI-2 Block Multitenant Resources (partly)
 
 ### GRD-05
 
@@ -165,6 +171,7 @@ Level basic, read-only, expected result: blocked. Pair: [GRD-01](#grd-01).
 - **Does not prove:** That a tenant cannot be given more access by a platform admin by mistake.
 - **How:** As the tenant admin, create a role binding to the cluster role "admin" in tenant A as a server-side dry run.
 - **Fix when it fails:** Leave role bindings out of the tenant admin role. Kubernetes also prevents escalation beyond the rights the tenant already holds.
+- **Benchmarks** ([mapping](benchmarks.md)): Multi-tenancy benchmark MTB-PL2-CC-TI-1 Block role privilege escalation (partly); Multi-tenancy benchmark MTB-PL2-BC-OPS-3 Create Role Bindings (differs); CIS 5.1.8 Limit use of the Bind, Impersonate and Escalate permissions in the Kubernetes cluster (partly)
 
 ### GRD-06
 
@@ -176,6 +183,7 @@ Level basic, read-only, expected result: blocked. Pair: [GRD-01](#grd-01).
 - **Does not prove:** That Pod Security is enforced at the expected level. ADM-02 tests that.
 - **How:** As the tenant admin, set pod-security.kubernetes.io/enforce=privileged on the namespace of tenant A as a server-side dry run.
 - **Fix when it fails:** Do not give tenant admins write rights on their namespace object.
+- **Benchmarks** ([mapping](benchmarks.md)): CIS 5.2.1 Ensure that the cluster has at least one active policy control mechanism in place (partly)
 
 ### GRD-07
 
@@ -220,6 +228,7 @@ Level basic, read-only, expected result: blocked. Pair: [GRD-09](#grd-09).
 - **Does not prove:** That port-forward, attach and the kubelet API are refused. Only pods/exec is asked about.
 - **How:** As the admin of tenant A, ask the API whether it may create pods/exec in tenant B (an access review). The answer must be no.
 - **Fix when it fails:** Remove role bindings in tenant B that include tenant A's groups, and cluster role bindings that grant pods/exec in every namespace.
+- **Benchmarks** ([mapping](benchmarks.md)): Multi-tenancy benchmark MTB-PL1-CC-TI-2 Block access to other tenant resources (partly)
 
 ## Admission of pods
 
@@ -244,6 +253,7 @@ Level basic, read-only, expected result: blocked. Pair: [ADM-01](#adm-01).
 - **Does not prove:** That every other dangerous setting (host namespaces, host paths, added capabilities) is refused. Only privileged is sent.
 - **How:** As the tenant admin, create a pod with privileged: true in tenant A as a server-side dry run.
 - **Fix when it fails:** Label the namespace pod-security.kubernetes.io/enforce=baseline or restricted, or enforce the same with an admission policy.
+- **Benchmarks** ([mapping](benchmarks.md)): Multi-tenancy benchmark MTB-PL1-BC-CPI-5 Block privileged containers (tests); CIS 5.2.2 Minimize the admission of privileged containers (tests)
 
 ## Network isolation
 
@@ -290,6 +300,7 @@ Level basic, active, expected result: blocked. Pair: [NET-01](#net-01).
 - **Does not prove:** That every port is closed. The test server listens on one port.
 - **How:** From a client of tenant A, fetch from a server of tenant B on the same node by pod IP, and the other way round. The connection must time out.
 - **Fix when it fails:** Add a default-deny network policy to every tenant namespace, and use a network plugin that enforces network policies.
+- **Benchmarks** ([mapping](benchmarks.md)): CIS 5.3.1 Ensure that the CNI in use supports NetworkPolicies (tests); CIS 5.3.2 Ensure that all Namespaces have NetworkPolicies defined (partly)
 
 ### NET-05
 
@@ -301,6 +312,7 @@ Level basic, active, expected result: blocked. Pair: [NET-02](#net-02).
 - **Does not prove:** Anything on a cluster with one node, where it is skipped.
 - **How:** From a client of tenant A, fetch from a server of tenant B on another node, and the other way round. The connection must time out.
 - **Fix when it fails:** As for NET-04.
+- **Benchmarks** ([mapping](benchmarks.md)): CIS 5.3.1 Ensure that the CNI in use supports NetworkPolicies (tests); CIS 5.3.2 Ensure that all Namespaces have NetworkPolicies defined (partly)
 
 ### NET-06
 
@@ -312,6 +324,7 @@ Level hardened, active, expected result: blocked. Pair: [NET-01](#net-01).
 - **Does not prove:** That no egress exists through a proxy or an egress gateway that the platform provides on purpose.
 - **How:** From a pod of tenant A, connect to a public address on port 443. The connection must time out.
 - **Fix when it fails:** Keep the default-deny egress policy, and allow only the destinations a tenant needs. Skip this check if your platform allows internet egress on purpose.
+- **Benchmarks** ([mapping](benchmarks.md)): CIS 5.3.2 Ensure that all Namespaces have NetworkPolicies defined (partly)
 
 ## Noisy neighbours
 
@@ -393,6 +406,7 @@ Level basic, active, expected result: blocked. Pair: [QTA-01](#qta-01).
 - **Does not prove:** That what is claimed is used. A quota limits requests, not usage.
 - **How:** With the pod of QTA-01 running, create a second pod that would take the requests above the quota.
 - **Fix when it fails:** Give every tenant namespace a resource quota with CPU and memory requests and limits.
+- **Benchmarks** ([mapping](benchmarks.md)): Multi-tenancy benchmark MTB-PL1-CC-FNS-1 Configure namespace resource quotas (partly)
 
 ### QTA-03
 
@@ -415,6 +429,7 @@ Level basic, read-only, expected result: blocked. Pair: [QTA-03](#qta-03).
 - **Does not prove:** That no other way exists to expose a pod outside the cluster, such as an ingress.
 - **How:** As the tenant admin, create a NodePort service in tenant A as a server-side dry run.
 - **Fix when it fails:** Set services.nodeports: 0 in the tenant's resource quota, or refuse the type with an admission policy.
+- **Benchmarks** ([mapping](benchmarks.md)): Multi-tenancy benchmark MTB-PL1-BC-HI-1 Block use of NodePort services (tests)
 
 ### QTA-05
 
@@ -470,6 +485,7 @@ Level basic, active, expected result: blocked. Pair: [QTA-08](#qta-08).
 - **Does not prove:** That other object counts (services, volume claims) are limited.
 - **How:** With the pods of QTA-08 created, create one more.
 - **Fix when it fails:** Set a pods count in the tenant's resource quota.
+- **Benchmarks** ([mapping](benchmarks.md)): Multi-tenancy benchmark MTB-PL1-CC-FNS-2 Configure namespace object limits (partly)
 
 ## Operators (research, off by default)
 

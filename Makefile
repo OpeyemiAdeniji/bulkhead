@@ -54,7 +54,7 @@ policy-test: ## Test the Kyverno policies offline, and check that the tests can 
 test-policy-live: ## Test the Kyverno policies on the local cluster (set WITH_EXPIRY=1 to test expiry)
 	bash tests/policy-live/run.sh
 
-checks-doc: ## Regenerate docs/checks.md from the check catalogue
+checks-doc: ## Regenerate docs/checks.md and docs/benchmarks.md from the check catalogue
 	go test ./internal/catalog -run TestChecksDocIsUpToDate -update -count=1
 
 checker-build: ## Build the checker into bin/bulkhead

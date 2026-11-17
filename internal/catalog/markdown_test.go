@@ -7,26 +7,28 @@ import (
 	"testing"
 )
 
-var update = flag.Bool("update", false, "rewrite docs/checks.md from the catalogue")
+var update = flag.Bool("update", false, "rewrite docs/checks.md and docs/benchmarks.md from the catalogue")
 
-const docPath = "../../docs/checks.md"
-
-// TestChecksDocIsUpToDate fails when docs/checks.md differs from the catalogue.
-// make checks-doc rewrites it.
+// TestChecksDocIsUpToDate fails when docs/checks.md or docs/benchmarks.md differs from the
+// catalogue. make checks-doc rewrites them.
 func TestChecksDocIsUpToDate(t *testing.T) {
-	want := Markdown()
-	if *update {
-		if err := os.WriteFile(docPath, []byte(want), 0o644); err != nil {
-			t.Fatal(err)
+	for path, want := range map[string]string{
+		"../../docs/checks.md":     Markdown(),
+		"../../docs/benchmarks.md": BenchmarksMarkdown(),
+	} {
+		if *update {
+			if err := os.WriteFile(path, []byte(want), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			continue
 		}
-		return
-	}
-	got, err := os.ReadFile(docPath)
-	if err != nil {
-		t.Fatalf("%v: run make checks-doc", err)
-	}
-	if string(got) != want {
-		t.Fatal("docs/checks.md is not up to date with the catalogue: run make checks-doc and commit the result")
+		got, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("%v: run make checks-doc", err)
+		}
+		if string(got) != want {
+			t.Fatalf("%s is not up to date with the catalogue: run make checks-doc and commit the result", path)
+		}
 	}
 }
 
