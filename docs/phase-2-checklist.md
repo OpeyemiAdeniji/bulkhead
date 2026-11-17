@@ -56,7 +56,7 @@ One item of this package waits for the first active check, because only then doe
 
 ## 6. Beyond the built-in checks
 
-- [ ] A file in which teams declare their own expected flows ("alpha may reach the shared database, nothing else may"), with a JSON Schema.
+- [x] A file in which teams declare their own expected flows ("alpha may reach the shared database, nothing else may"), with a JSON Schema. `--flows` ([declared-flows.md](declared-flows.md), [ADR 0019](adr/0019-declared-flows-file.md)): FLW-01 and FLW-02, with a pair per destination; tested on kind against a shared service.
 - [ ] Probes from inside a running workload with an ephemeral container, as an option.
 - [ ] Research category, off by default: XNS-01 and XNS-02 (cross-namespace references through installed operators), with its own safety rules and an ADR.
 

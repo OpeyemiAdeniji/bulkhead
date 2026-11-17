@@ -108,7 +108,7 @@
       "properties": {
         "id": { "type": "string", "pattern": "^[A-Z]{3}-[0-9]{2}$" },
         "title": { "type": "string" },
-        "category": { "enum": ["access", "guardrails", "admission", "network", "resources", "quota", "operators"] },
+        "category": { "enum": ["access", "guardrails", "admission", "network", "resources", "quota", "flows", "operators"] },
         "level": { "enum": ["basic", "hardened", "research"] },
         "mode": { "enum": ["read-only", "active"] },
         "expect": { "enum": ["allowed", "blocked"] },

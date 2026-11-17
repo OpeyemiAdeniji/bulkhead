@@ -12,6 +12,7 @@ var categoryTitles = map[Category]string{
 	Network:    "Network isolation",
 	Resources:  "Noisy neighbours",
 	Quota:      "Quota and limits",
+	Flows:      "Declared flows (with --flows)",
 	Operators:  "Operators (research, off by default)",
 }
 

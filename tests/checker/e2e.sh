@@ -238,6 +238,66 @@ expect 1 "without a quota, exactly the quota checks of that tenant fail" \
   check "${TENANTS[@]}" --category quota
 make tenants-apply > /dev/null
 
+echo "== declared flows: alpha may reach a shared service, bravo may not"
+# A shared namespace with a web service on port 8080, and a flows file that declares the intent.
+# The tenants deny all egress by default, so at first alpha cannot reach it either.
+SHARED=bhc-e2e-shared
+k create namespace "$SHARED" > /dev/null
+k -n "$SHARED" run web --image=busybox:1.36 --port=8080 --labels=app=web \
+  -- sh -c 'echo ok > /tmp/index.html && exec httpd -f -p 8080 -h /tmp' > /dev/null
+k -n "$SHARED" expose pod web --port=8080 > /dev/null
+k -n "$SHARED" wait --for=condition=Ready pod/web --timeout=120s > /dev/null
+flows_file="$(mktemp --suffix=.yaml)"
+cat > "$flows_file" << EOF
+apiVersion: bulkhead.io/v1alpha1
+kind: Flows
+flows:
+  - name: alpha-to-shared
+    from: tenant-alpha
+    to: {service: web, namespace: $SHARED, port: 8080}
+    expect: allowed
+  - name: bravo-not-to-shared
+    from: tenant-bravo
+    to: {service: web, namespace: $SHARED, port: 8080}
+    expect: blocked
+EOF
+# allow_egress NAMESPACE NAME SELECTOR: an egress policy for every pod of the namespace.
+allow_egress() {
+  k apply -f - > /dev/null << EOF
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: $2, namespace: $1}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress: [$3]
+EOF
+}
+
+expect 1 "a flow the policies do not allow fails FLW-01, and makes its blocked pair inconclusive" \
+  "FLW-01 fail alpha-to-shared" "no connection to web.$SHARED.svc:8080" \
+  "FLW-02 inconclusive bravo-not-to-shared" "may be down" -- \
+  check "${TENANTS[@]}" --category flows --flows "$flows_file"
+
+allow_egress tenant-alpha bhc-e2e-allow-shared "{to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: $SHARED}}}], ports: [{port: 8080, protocol: TCP}]}"
+expect 0 "with an egress policy for alpha, both declared flows hold" \
+  "FLW-01 pass alpha-to-shared" "FLW-02 pass bravo-not-to-shared" "while the allowed flow alpha-to-shared connected" "0 fail" -- \
+  check "${TENANTS[@]}" --category flows --flows "$flows_file"
+
+allow_egress tenant-bravo bhc-e2e-allow-all "{}"
+expect 1 "when bravo may send anywhere, FLW-02 fails" \
+  "FLW-01 pass alpha-to-shared" "FLW-02 fail bravo-not-to-shared" "must be blocked" -- \
+  check "${TENANTS[@]}" --category flows --flows "$flows_file"
+
+expect 2 "a flow from a namespace that is not under test is refused before the run" \
+  "flows must start in a tenant under test" "bravo-not-to-shared (from tenant-bravo)" -- \
+  check --context "$CONTEXT" --tenant tenant-alpha --flows "$flows_file"
+
+k -n tenant-alpha delete networkpolicy bhc-e2e-allow-shared > /dev/null
+k -n tenant-bravo delete networkpolicy bhc-e2e-allow-all > /dev/null
+k delete namespace "$SHARED" --wait=false > /dev/null
+rm -f "$flows_file"
+
 echo "== interrupt: Ctrl+C while test pods exist"
 "$BIN" check "${TENANTS[@]}" --category network > "$out" 2>&1 &
 pid=$!

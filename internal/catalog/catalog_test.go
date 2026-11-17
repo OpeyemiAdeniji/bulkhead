@@ -11,7 +11,7 @@ var idPattern = regexp.MustCompile(`^[A-Z]{3}-[0-9]{2}$`)
 // prefixes ties the ID prefix to the category, so that an ID tells where a check belongs.
 var prefixes = map[Category]string{
 	Access: "ACC", Guardrails: "GRD", Admission: "ADM", Network: "NET",
-	Resources: "RES", Quota: "QTA", Operators: "XNS",
+	Resources: "RES", Quota: "QTA", Flows: "FLW", Operators: "XNS",
 }
 
 func TestEveryCheckIsComplete(t *testing.T) {

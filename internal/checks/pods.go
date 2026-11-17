@@ -241,6 +241,9 @@ type state struct {
 	res    *resFixture
 	resErr error
 	quota  *quotaState
+	// probes holds the outcome of each declared flow, by name, so FLW-02 can see whether
+	// the allowed flows to its destination connected.
+	probes map[string]probeOutcome
 }
 
 var states sync.Map // *sandbox.Sandbox -> *state

@@ -13,6 +13,7 @@ import (
 
 	"github.com/OpeyemiAdeniji/bulkhead/internal/catalog"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/exitcode"
+	"github.com/OpeyemiAdeniji/bulkhead/internal/flows"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/kube"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/sandbox"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/tenant"
@@ -47,6 +48,10 @@ type Result struct {
 	// or "dns" and "internet". They draw the network matrix of the HTML report.
 	From string `json:"from,omitempty"`
 	To   string `json:"to,omitempty"`
+	// PairApplied says that the check has applied a finer pair rule itself, for example a
+	// declared flow, whose pair is an allowed flow to the same destination. ApplyPairs then
+	// leaves the result alone.
+	PairApplied bool `json:"-"`
 }
 
 // Env is what a check gets to work with.
@@ -56,6 +61,8 @@ type Env struct {
 	Sandbox *sandbox.Sandbox
 	// Impersonate returns a connection that acts as the given identity.
 	Impersonate func(kube.Identity) (*kube.Cluster, error)
+	// Flows are the flows the team declared (--flows), or nil.
+	Flows *flows.File
 }
 
 // Func runs one check and returns one result per subject.
@@ -216,7 +223,7 @@ func ApplyPairs(results []Result) []Result {
 	}
 	for i, r := range results {
 		c, ok := catalog.Get(r.Check)
-		if !ok || c.Expect != catalog.Blocked || r.Status != Pass {
+		if !ok || c.Expect != catalog.Blocked || r.Status != Pass || r.PairApplied {
 			continue
 		}
 		if st, same := bySubject[[2]string{c.Pair, r.Subject}]; same && r.Subject != "" {

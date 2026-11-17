@@ -2,7 +2,7 @@
 
 # The checks of bulkhead check
 
-The catalogue has 39 checks. Every check that must be blocked is paired with a check that must work, and its result counts only when that pair passed, so a broken test cannot pass by accident ([ADR 0012](adr/0012-active-tenant-isolation-checker.md)).
+The catalogue has 41 checks. Every check that must be blocked is paired with a check that must work, and its result counts only when that pair passed, so a broken test cannot pass by accident ([ADR 0012](adr/0012-active-tenant-isolation-checker.md)).
 
 - **Level:** basic checks run by default; hardened checks are selected on request, because some platforms allow what they block on purpose; research checks are experimental.
 - **Mode:** read-only checks only read, ask for access reviews or send server-side dry runs, so they are safe on production clusters (`--read-only`). Active checks create short-lived, labelled test objects and remove them.
@@ -35,6 +35,8 @@ The same list is printed by `bulkhead check --list`, and as JSON by `bulkhead ch
 | [NET-04](#net-04) | basic | active | blocked | [NET-01](#net-01) | A tenant cannot reach another tenant's pods on the same node |
 | [NET-05](#net-05) | basic | active | blocked | [NET-02](#net-02) | A tenant cannot reach another tenant's pods on another node |
 | [NET-06](#net-06) | hardened | active | blocked | [NET-01](#net-01) | A tenant cannot open connections to the internet |
+| [FLW-01](#flw-01) | basic | active | allowed | - | A flow the team declared as allowed connects |
+| [FLW-02](#flw-02) | basic | active | blocked | [FLW-01](#flw-01) | A flow the team declared as blocked does not connect |
 | [RES-01](#res-01) | basic | active | blocked | [RES-04](#res-04) | A CPU hog cannot use more than its CPU limit |
 | [RES-02](#res-02) | basic | active | blocked | [RES-04](#res-04) | The kernel throttles a CPU hog |
 | [RES-03](#res-03) | basic | active | blocked | [RES-05](#res-05) | A memory hog is killed at its memory limit |
@@ -325,6 +327,30 @@ Level hardened, active, expected result: blocked. Pair: [NET-01](#net-01).
 - **How:** From a pod of tenant A, connect to a public address on port 443. The connection must time out.
 - **Fix when it fails:** Keep the default-deny egress policy, and allow only the destinations a tenant needs. Skip this check if your platform allows internet egress on purpose.
 - **Benchmarks** ([mapping](benchmarks.md)): CIS 5.3.2 Ensure that all Namespaces have NetworkPolicies defined (partly); NSA/CISA Network policies, p. 16 Use a default policy that denies all ingress and egress traffic (partly)
+
+## Declared flows (with --flows)
+
+### FLW-01
+
+**A flow the team declared as allowed connects**
+
+Level basic, active, expected result: allowed. Pair: none, this check makes other results trustworthy.
+
+- **Proves:** The network lets the declared source reach the declared destination on its port, and something answers there. For a destination that blocked flows also name, it shows that the destination is up, so their timeouts are about the network.
+- **Does not prove:** That the application on the destination accepts the tenant: the probe opens a TCP connection and sends no data. Probes come from the checker's client pod, so policies that select pods by their own labels are not exercised.
+- **How:** From the checker's client pod in the source tenant, as the tenant admin, open a TCP connection to the destination (nc -z, three seconds). It must connect.
+- **Fix when it fails:** Allow the flow: an egress rule in the source tenant and an ingress rule at the destination. Check the service name, namespace and port in the flows file.
+
+### FLW-02
+
+**A flow the team declared as blocked does not connect**
+
+Level basic, active, expected result: blocked. Pair: [FLW-01](#flw-01).
+
+- **Proves:** The network keeps the declared source away from a destination that answers others: the connection times out, or is refused while an allowed flow to the same destination and port connected.
+- **Does not prove:** That the destination is unreachable by other routes, for example through a proxy or an ingress, or from sources that are not declared.
+- **How:** From the checker's client pod in the source tenant, open a TCP connection to the destination (nc -z, three seconds). It counts only when an allowed flow to the same destination and port connected in the same run.
+- **Fix when it fails:** Deny the flow: remove the egress rule of the source tenant or the ingress rule at the destination that lets it through.
 
 ## Noisy neighbours
 
