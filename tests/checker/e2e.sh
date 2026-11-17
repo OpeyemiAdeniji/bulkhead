@@ -105,11 +105,11 @@ if [ -n "$total" ] && reports_match "$total" 0; then
 else
   fail "the PolicyReports of the full run do not match its results"
 fi
-# Tenants may read their report, but not change or delete it (the tenant roles of the chart).
+# With the tenant roles of the chart, viewers may read their report, and admins may not change or delete it.
 if [ "$(k auth can-i get policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-viewers)" = "yes" ] &&
   [ "$(k auth can-i delete policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-admins)" = "no" ] &&
   [ "$(k auth can-i update policyreports -n tenant-alpha --as bulkhead-check --as-group alpha-admins)" = "no" ]; then
-  pass "a tenant may read its PolicyReport, but not change or delete it"
+  pass "a tenant viewer may read its PolicyReport, and a tenant admin may not change or delete it"
 else
   fail "the tenant roles do not protect the PolicyReport"
 fi
