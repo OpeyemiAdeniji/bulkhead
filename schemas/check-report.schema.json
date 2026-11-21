@@ -49,6 +49,11 @@
         "error": { "type": "string" }
       }
     },
+    "workloadProbes": {
+      "description": "Pods that received an ephemeral probe container (--probe-workloads), as namespace/pod (container).",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9-]+/[a-z0-9.-]+ \\([a-z0-9-]+\\)$" }
+    },
     "policyReports": {
       "description": "The PolicyReport objects (wgpolicyk8s.io/v1alpha2) the run wrote into the cluster, with --policy-reports.",
       "type": "object",

@@ -316,8 +316,8 @@ var checks = []Check{
 		ID: "FLW-01", Title: "A flow the team declared as allowed connects",
 		Category: Flows, Level: Basic, Mode: Active, Expect: Allowed,
 		Proves:       "The network lets the declared source reach the declared destination on its port, and something answers there. For a destination that blocked flows also name, it shows that the destination is up, so their timeouts are about the network.",
-		DoesNotProve: "That the application on the destination accepts the tenant: the probe opens a TCP connection and sends no data. Probes come from the checker's client pod, so policies that select pods by their own labels are not exercised.",
-		How:          "From the checker's client pod in the source tenant, as the tenant admin, open a TCP connection to the destination (nc -z, three seconds). It must connect.",
+		DoesNotProve: "That the application on the destination accepts the tenant: the probe opens a TCP connection and sends no data. Without via, the probe comes from the checker's client pod, so policies that select pods by their own labels are not exercised.",
+		How:          "From the checker's client pod in the source tenant, or, for a flow with via, from inside a running pod that matches its labels (an ephemeral container, with --probe-workloads), open a TCP connection to the destination (nc -z, three seconds). It must connect.",
 		Fix:          "Allow the flow: an egress rule in the source tenant and an ingress rule at the destination. Check the service name, namespace and port in the flows file.",
 	},
 	{
@@ -325,7 +325,7 @@ var checks = []Check{
 		Category: Flows, Level: Basic, Mode: Active, Expect: Blocked, Pair: "FLW-01",
 		Proves:       "The network keeps the declared source away from a destination that answers others: the connection times out, or is refused while an allowed flow to the same destination and port connected.",
 		DoesNotProve: "That the destination is unreachable by other routes, for example through a proxy or an ingress, or from sources that are not declared.",
-		How:          "From the checker's client pod in the source tenant, open a TCP connection to the destination (nc -z, three seconds). It counts only when an allowed flow to the same destination and port connected in the same run.",
+		How:          "From the checker's client pod in the source tenant, or from inside the workload its via labels select, open a TCP connection to the destination (nc -z, three seconds). It counts only when an allowed flow to the same destination and port connected in the same run.",
 		Fix:          "Deny the flow: remove the egress rule of the source tenant or the ingress rule at the destination that lets it through.",
 	},
 

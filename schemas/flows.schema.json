@@ -29,6 +29,21 @@
         "name": { "$ref": "#/$defs/dnsLabel", "description": "Identifies the flow in the reports. Unique within the file." },
         "description": { "type": "string", "maxLength": 500 },
         "from": { "$ref": "#/$defs/dnsLabel", "description": "The tenant namespace the probe starts from. It must be one of the tenants under test." },
+        "via": {
+          "description": "Labels of a running pod in the from namespace. The probe then runs inside that pod, in an ephemeral container, which needs --probe-workloads (docs/adr/0020-probes-from-workloads.md).",
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 10,
+          "propertyNames": {
+            "maxLength": 253,
+            "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?[A-Za-z0-9]([-A-Za-z0-9_.]{0,61}[A-Za-z0-9])?$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 63,
+            "pattern": "^([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?)?$"
+          }
+        },
         "to": { "$ref": "#/$defs/destination" },
         "expect": { "enum": ["allowed", "blocked"] }
       }

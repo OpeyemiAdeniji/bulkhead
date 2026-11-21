@@ -29,6 +29,13 @@ const (
 type probeOutcome struct {
 	kind   string
 	detail string
+	// from names the workload pod a probe ran in (namespace/pod), or "" for the client pod.
+	from string
+}
+
+// probeCommand is the probe of a flow. The destination and port are arguments of the script.
+func probeCommand(fl flows.Flow) []string {
+	return []string{"sh", "-c", probeScript, "probe", fl.To.Address(), strconv.Itoa(fl.To.Port), strconv.Itoa(FlowTimeout)}
 }
 
 func init() {
@@ -69,8 +76,9 @@ func classify(out string, err error) probeOutcome {
 	}
 }
 
-// probeFlow probes a declared flow once per run, and remembers the outcome.
-func probeFlow(ctx context.Context, env *runner.Env, checkID string, f *netFixture, fl flows.Flow) probeOutcome {
+// probeFlow probes a declared flow once per run, and remembers the outcome: from inside the
+// workload its via labels select, or else from the checker's client pod in its source tenant.
+func probeFlow(ctx context.Context, env *runner.Env, checkID string, fl flows.Flow) probeOutcome {
 	s := stateOf(env)
 	s.mu.Lock()
 	if o, ok := s.probes[fl.Name]; ok {
@@ -80,13 +88,13 @@ func probeFlow(ctx context.Context, env *runner.Env, checkID string, f *netFixtu
 	s.mu.Unlock()
 
 	var o probeOutcome
-	clients := f.clients[fl.From]
-	if len(clients) == 0 {
-		o = probeOutcome{kind: probeErr, detail: fl.From + " is not a tenant under test, so it has no client pod"}
-	} else {
-		out, err := execIn(ctx, env, checkID, fl.From, clients[0].Name,
-			"sh", "-c", probeScript, "probe", fl.To.Address(), strconv.Itoa(fl.To.Port), strconv.Itoa(FlowTimeout))
-		o = classify(out, err)
+	switch {
+	case len(fl.Via) > 0 && !env.ProbeWorkloads:
+		o = probeOutcome{kind: probeErr, detail: "this flow is probed from inside a workload, which needs --probe-workloads"}
+	case len(fl.Via) > 0:
+		o = probeWorkload(ctx, env, checkID, fl)
+	default:
+		o = probeClient(ctx, env, checkID, fl)
 	}
 	s.mu.Lock()
 	if s.probes == nil {
@@ -95,6 +103,24 @@ func probeFlow(ctx context.Context, env *runner.Env, checkID string, f *netFixtu
 	s.probes[fl.Name] = o
 	s.mu.Unlock()
 	return o
+}
+
+// probeClient probes a flow from the checker's client pod in the flow's source tenant. The
+// network fixture starts on first use, and is shared with the network checks.
+func probeClient(ctx context.Context, env *runner.Env, checkID string, fl flows.Flow) probeOutcome {
+	f, err := network(ctx, env, checkID)
+	switch {
+	case errors.Is(err, sandbox.ErrNotSent):
+		return probeOutcome{kind: planned}
+	case err != nil:
+		return probeOutcome{kind: probeErr, detail: "the checker's test pods did not start: " + err.Error()}
+	}
+	clients := f.clients[fl.From]
+	if len(clients) == 0 {
+		return probeOutcome{kind: probeErr, detail: fl.From + " is not a tenant under test, so it has no client pod"}
+	}
+	out, err := execIn(ctx, env, checkID, fl.From, clients[0].Name, probeCommand(fl)...)
+	return classify(out, err)
 }
 
 func flowCheck(expect string) runner.Func {
@@ -111,25 +137,17 @@ func flowCheck(expect string) runner.Func {
 		if len(mine) == 0 {
 			return []runner.Result{{Status: runner.Skipped, Message: "the flows file declares no " + expect + " flow"}}
 		}
-		f, err := network(ctx, env, c.ID)
-		if err != nil {
-			var out []runner.Result
-			for _, r := range fixtureFailed(err) {
-				for _, fl := range mine {
-					r.Subject, r.From, r.To = fl.Name, fl.From, fl.To.Label()
-					out = append(out, r)
-				}
-			}
-			return out
-		}
 		var out []runner.Result
 		for _, fl := range mine {
-			o := probeFlow(ctx, env, c.ID, f, fl)
+			o := probeFlow(ctx, env, c.ID, fl)
 			var r runner.Result
 			if expect == flows.Allowed {
 				r = judgeAllowed(fl, o)
 			} else {
-				r = judgeBlocked(ctx, env, c.ID, f, fl, o)
+				r = judgeBlocked(ctx, env, c.ID, fl, o)
+			}
+			if o.from != "" && r.Message != "" {
+				r.Message += " (from inside " + o.from + ")"
 			}
 			r.Subject, r.From, r.To = fl.Name, fl.From, fl.To.Label()
 			out = append(out, r)
@@ -157,7 +175,7 @@ func judgeAllowed(fl flows.Flow, o probeOutcome) runner.Result {
 
 // judgeBlocked passes a flow that did not connect, but only when an allowed flow to the same
 // destination and port connected: otherwise the destination may simply be down.
-func judgeBlocked(ctx context.Context, env *runner.Env, checkID string, f *netFixture, fl flows.Flow, o probeOutcome) runner.Result {
+func judgeBlocked(ctx context.Context, env *runner.Env, checkID string, fl flows.Flow, o probeOutcome) runner.Result {
 	dst := fl.To.String()
 	r := runner.Result{PairApplied: true}
 	switch o.kind {
@@ -176,7 +194,7 @@ func judgeBlocked(ctx context.Context, env *runner.Env, checkID string, f *netFi
 	}
 	var witness string
 	for _, p := range env.Flows.Pairs(fl) {
-		if probeFlow(ctx, env, checkID, f, p).kind == connected {
+		if probeFlow(ctx, env, checkID, p).kind == connected {
 			witness = p.Name
 			break
 		}

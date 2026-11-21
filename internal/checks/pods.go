@@ -41,8 +41,14 @@ var (
 // Exec runs a command in a pod with the user's own identity and returns its output (stdout and
 // stderr together). A command that exits with a non-zero code returns an error. Tests replace it.
 var Exec = func(ctx context.Context, env *runner.Env, ns, pod string, command []string) (string, error) {
+	return ExecContainer(ctx, env, ns, pod, "", command)
+}
+
+// ExecContainer is Exec in a named container of the pod; "" is the pod's default container.
+// The probes inside workloads use it for their ephemeral container. Tests replace it.
+var ExecContainer = func(ctx context.Context, env *runner.Env, ns, pod, container string, command []string) (string, error) {
 	req := env.Cluster.Client.CoreV1().RESTClient().Post().Resource("pods").Namespace(ns).Name(pod).SubResource("exec").
-		VersionedParams(&corev1.PodExecOptions{Command: command, Stdout: true, Stderr: true}, scheme.ParameterCodec)
+		VersionedParams(&corev1.PodExecOptions{Container: container, Command: command, Stdout: true, Stderr: true}, scheme.ParameterCodec)
 	spdy, err := remotecommand.NewSPDYExecutor(env.Cluster.Config, "POST", req.URL())
 	if err != nil {
 		return "", err
@@ -244,6 +250,8 @@ type state struct {
 	// probes holds the outcome of each declared flow, by name, so FLW-02 can see whether
 	// the allowed flows to its destination connected.
 	probes map[string]probeOutcome
+	// workloads holds the probe container of each namespace and selector (ADR 0020).
+	workloads map[string]*workloadTarget
 }
 
 var states sync.Map // *sandbox.Sandbox -> *state

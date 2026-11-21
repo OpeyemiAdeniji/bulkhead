@@ -240,6 +240,7 @@ func TestFlowsFileErrorsStopBeforeTheCluster(t *testing.T) {
 	head := "apiVersion: bulkhead.io/v1alpha1\nkind: Flows\nflows:\n"
 	good := write("good.yaml", head+"  - {name: x, from: tenant-alpha, to: {service: db, namespace: shared, port: 5432}, expect: allowed}\n")
 	unpaired := write("unpaired.yaml", head+"  - {name: x, from: tenant-alpha, to: {service: db, namespace: shared, port: 5432}, expect: blocked}\n")
+	via := write("via.yaml", head+"  - {name: x, from: tenant-alpha, via: {app: orders}, to: {service: db, namespace: shared, port: 5432}, expect: allowed}\n")
 	for _, c := range []struct {
 		args []string
 		want string
@@ -249,6 +250,8 @@ func TestFlowsFileErrorsStopBeforeTheCluster(t *testing.T) {
 		{[]string{"--tenant", "tenant-bravo", "--flows", good}, "flows must start in a tenant under test"},
 		{[]string{"--tenant", "tenant-alpha", "--id", "FLW-01"}, "need a flows file"},
 		{[]string{"--tenant", "tenant-alpha", "--category", "flows"}, "need a flows file"},
+		{[]string{"--tenant", "tenant-alpha", "--flows", via}, "allow that with --probe-workloads"},
+		{[]string{"--tenant", "tenant-alpha", "--flows", via, "--probe-workloads", "--read-only"}, "cannot be combined with --read-only"},
 	} {
 		code, out, errOut := run(t, append([]string{"check"}, c.args...)...)
 		if code != exitcode.Usage || !strings.Contains(errOut, c.want) || out != "" {

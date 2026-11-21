@@ -293,10 +293,82 @@ expect 2 "a flow from a namespace that is not under test is refused before the r
   "flows must start in a tenant under test" "bravo-not-to-shared (from tenant-bravo)" -- \
   check --context "$CONTEXT" --tenant tenant-alpha --flows "$flows_file"
 
-k -n tenant-alpha delete networkpolicy bhc-e2e-allow-shared > /dev/null
 k -n tenant-bravo delete networkpolicy bhc-e2e-allow-all > /dev/null
+
+echo "== declared flows from inside a workload: only the orders pods of alpha may reach the shared service"
+# A label policy: alpha's egress to the shared service is now allowed for pods with app=orders only.
+k -n tenant-alpha delete networkpolicy bhc-e2e-allow-shared > /dev/null
+k apply -f - > /dev/null << EOF
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: bhc-e2e-allow-orders, namespace: tenant-alpha}
+spec:
+  podSelector: {matchLabels: {app: orders}}
+  policyTypes: [Egress]
+  egress: [{to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: $SHARED}}}], ports: [{port: 8080, protocol: TCP}]}]
+---
+apiVersion: v1
+kind: Pod
+metadata: {name: e2e-orders, namespace: tenant-alpha, labels: {app: orders}}
+spec:
+  securityContext: {runAsNonRoot: true, runAsUser: 65534, seccompProfile: {type: RuntimeDefault}}
+  terminationGracePeriodSeconds: 0
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: [sleep, "3600"]
+      resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {cpu: 50m, memory: 32Mi}}
+      securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+EOF
+k -n tenant-alpha wait --for=condition=Ready pod/e2e-orders --timeout=120s > /dev/null
+workload_flows="$(mktemp --suffix=.yaml)"
+cat > "$workload_flows" << EOF
+apiVersion: bulkhead.io/v1alpha1
+kind: Flows
+flows:
+  - name: orders-to-shared
+    from: tenant-alpha
+    via: {app: orders}
+    to: {service: web, namespace: $SHARED, port: 8080}
+    expect: allowed
+  - name: rest-of-alpha-not-to-shared
+    from: tenant-alpha
+    to: {service: web, namespace: $SHARED, port: 8080}
+    expect: blocked
+EOF
+
+# The checker's own client pod does not have the label, so the plain flow of alpha now fails:
+# a probe from the namespace cannot test a policy written for one workload.
+expect 1 "with a label policy, the probe from the checker's pod no longer reaches the service" \
+  "FLW-01 fail alpha-to-shared" -- \
+  check "${TENANTS[@]}" --category flows --flows "$flows_file"
+
+expect 2 "flows with via are refused without --probe-workloads" "allow that with --probe-workloads" -- \
+  check "${TENANTS[@]}" --flows "$workload_flows"
+
+expect 0 "from inside the orders pod the flow works, and from the rest of the namespace it is blocked" \
+  "FLW-01 pass orders-to-shared" "from inside tenant-alpha/e2e-orders" \
+  "FLW-02 pass rest-of-alpha-not-to-shared" "while the allowed flow orders-to-shared connected" \
+  "Probe containers were added to tenant-alpha/e2e-orders" "0 fail" -- \
+  check "${TENANTS[@]}" --category flows --flows "$workload_flows" --probe-workloads
+
+# The run told its probe container to exit: it is terminated, and still listed in the pod's spec.
+state=""
+for _ in $(seq 1 30); do
+  state="$(k -n tenant-alpha get pod e2e-orders -o jsonpath='{.status.ephemeralContainerStatuses[0].state.terminated.reason}')"
+  [ -n "$state" ] && break
+  sleep 1
+done
+if [ -n "$state" ] && [ "$(k -n tenant-alpha get pod e2e-orders -o jsonpath='{.spec.ephemeralContainers[0].securityContext.runAsNonRoot}')" = "true" ]; then
+  pass "the restricted probe container exited after the run ($state), and stays in the pod's spec"
+else
+  fail "the probe container did not exit after the run, or is not restricted"
+fi
+
+k -n tenant-alpha delete pod e2e-orders --wait=false > /dev/null
+k -n tenant-alpha delete networkpolicy bhc-e2e-allow-orders > /dev/null
 k delete namespace "$SHARED" --wait=false > /dev/null
-rm -f "$flows_file"
+rm -f "$flows_file" "$workload_flows"
 
 echo "== interrupt: Ctrl+C while test pods exist"
 "$BIN" check "${TENANTS[@]}" --category network > "$out" 2>&1 &

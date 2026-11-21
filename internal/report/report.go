@@ -41,7 +41,11 @@ type Report struct {
 	Cleanup    *Cleanup          `json:"cleanup,omitempty"`
 	// PolicyReports says which PolicyReport objects the run wrote (--policy-reports).
 	PolicyReports *PolicyReports `json:"policyReports,omitempty"`
-	Summary       Summary        `json:"summary"`
+	// WorkloadProbes lists the pods that received an ephemeral probe container
+	// (--probe-workloads), as "namespace/pod (container)". The container stays in the pod's
+	// spec until the pod is replaced.
+	WorkloadProbes []string `json:"workloadProbes,omitempty"`
+	Summary        Summary  `json:"summary"`
 	// ExitCode is the exit code of the run (docs/adr/0018-checker-in-this-repository.md), so a
 	// CI system that keeps only the file still knows the outcome.
 	ExitCode int `json:"exitCode"`

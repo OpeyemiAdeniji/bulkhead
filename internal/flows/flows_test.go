@@ -114,6 +114,9 @@ func TestBadFiles(t *testing.T) {
 		{"blocked with pair on another port", flow(ok + "  - {name: b, from: tenant-b, to: {service: s, namespace: ns, port: 81}, expect: blocked}\n"), "same destination (s.ns.svc:81)", false},
 		{"two documents", flow(ok) + "---\n" + flow(ok), "more than one document", false},
 		{"not yaml", "flows: [", "not valid YAML", false},
+		{"empty via", flow("  - {name: a, from: tenant-a, via: {}, to: {service: s, namespace: ns, port: 80}, expect: allowed}\n"), "between 1 and 10 labels", true},
+		{"bad via key", flow("  - {name: a, from: tenant-a, via: {'bad key': x}, to: {service: s, namespace: ns, port: 80}, expect: allowed}\n"), "is not a label key", true},
+		{"bad via value", flow("  - {name: a, from: tenant-a, via: {app: 'not ok!'}, to: {service: s, namespace: ns, port: 80}, expect: allowed}\n"), "is not a label value", true},
 	} {
 		_, err := Parse([]byte(c.doc))
 		if err == nil || !strings.Contains(err.Error(), c.want) {
@@ -158,6 +161,33 @@ func TestEveryErrorIsReported(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("the error misses %q: %v", want, err)
 		}
+	}
+}
+
+func TestVia(t *testing.T) {
+	doc := "apiVersion: bulkhead.io/v1alpha1\nkind: Flows\nflows:\n" +
+		"  - {name: a, from: tenant-b, via: {app: orders, app.kubernetes.io/part-of: shop}, to: {service: s, namespace: ns, port: 80}, expect: allowed}\n" +
+		"  - {name: b, from: tenant-a, to: {service: s, namespace: ns, port: 80}, expect: blocked}\n" +
+		"  - {name: c, from: tenant-a, via: {app: web}, to: {service: s, namespace: ns, port: 80}, expect: allowed}\n"
+	f, err := Parse([]byte(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !schemaValid(t, doc) {
+		t.Fatal("the schema refuses a file with via")
+	}
+	if got := f.Flows[0].Selector(); got != "app=orders,app.kubernetes.io/part-of=shop" {
+		t.Errorf("selector %q", got)
+	}
+	if f.Flows[1].Selector() != "" {
+		t.Error("a flow without via has no selector")
+	}
+	if !f.UsesWorkloads() || strings.Join(f.WorkloadNamespaces(), ",") != "tenant-a,tenant-b" {
+		t.Errorf("workload namespaces: %v", f.WorkloadNamespaces())
+	}
+	plain, _ := Parse([]byte(good))
+	if plain.UsesWorkloads() {
+		t.Error("a file without via uses no workloads")
 	}
 }
 

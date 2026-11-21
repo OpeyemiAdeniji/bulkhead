@@ -51,6 +51,7 @@ func sample() *report.Report {
 	}
 	r.Requests = []sandbox.Request{{Verb: "create", Kind: "pod", Namespace: "tenant-alpha", Name: "bhc-x", As: "bulkhead-check (groups alpha-admins)", Stores: true, Check: "QTA-08"}}
 	r.Cleanup = &report.Cleanup{Deleted: 20}
+	r.WorkloadProbes = []string{"tenant-alpha/orders-1 (bhc-r1)"}
 	r.PolicyReports = &report.PolicyReports{Written: []string{"tenant-alpha/bulkhead-check"}, LeftOut: 1, Error: "write PolicyReport tenant-bravo/bulkhead-check: forbidden"}
 	r.Summarise()
 	r.ExitCode = 1
@@ -116,6 +117,7 @@ func TestTheSchemaRefusesWrongReports(t *testing.T) {
 		"wrong api version": func(m map[string]any) { m["apiVersion"] = "bulkhead.io/v2" },
 		"bad check ID":      func(m map[string]any) { m["results"].([]any)[0].(map[string]any)["check"] = "net-4" },
 		"bad date":          func(m map[string]any) { m["run"].(map[string]any)["startedAt"] = "yesterday" },
+		"bad probed pod":    func(m map[string]any) { m["workloadProbes"] = []any{"orders-1"} },
 		"bad report name":   func(m map[string]any) { m["policyReports"].(map[string]any)["written"] = []any{"no-namespace"} },
 	} {
 		data, _ := json.Marshal(good)
@@ -261,6 +263,7 @@ func TestTable(t *testing.T) {
 		"Dry run: nothing was sent", "ACC-02  fail", "8 results: 2 pass, 1 fail, 1 inconclusive, 1 error, 1 skipped, 1 not-implemented, 1 planned",
 		"Clean-up: removed 20 test objects", "How to fix:", "ACC-02 A tenant admin cannot read secrets in another tenant's namespace",
 		"Remove role bindings in tenant B",
+		"Probe containers were added to tenant-alpha/orders-1 (bhc-r1). Kubernetes keeps them in the pod's spec, stopped, until the pod is replaced.",
 		"PolicyReports: wrote tenant-alpha/bulkhead-check. Results that name no tenant, so are in no report: 1. Errors: write PolicyReport tenant-bravo"} {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("the table misses %q", want)
