@@ -123,7 +123,7 @@ make cluster-up            # build the kind cluster and install Calico (about 3 
 make tenants-apply         # render every tenant file and apply it
 make test-isolation        # 41 isolation checks
 make kyverno-up            # install Kyverno, the bulkhead-platform chart and the exceptions
-make test-policy-live      # 29 live policy checks
+make test-policy-live      # 31 live policy checks
 make cluster-down          # remove the cluster
 ```
 

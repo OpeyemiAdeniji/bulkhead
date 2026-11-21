@@ -9,7 +9,7 @@ This guide installs Bulkhead on a cluster that you already run: Amazon EKS, Goog
 | Part | Installed | What it contains |
 |---|---|---|
 | Kyverno | once per cluster, by you, if you do not run it yet | the admission controller that runs the policies |
-| `charts/bulkhead-platform` | once per cluster | the two policies, the namespace for policy exceptions, and the permission that lets Kyverno delete expired exceptions |
+| `charts/bulkhead-platform` | once per cluster | the policies, the namespace for policy exceptions, and the permission that lets Kyverno delete expired exceptions |
 | `charts/bulkhead-tenant` | once per tenant file | the tenant's namespace, quota, default limits, access rules and network policies |
 
 The decision behind this split is [ADR 0016](adr/0016-two-charts-configurable-per-cluster.md).
@@ -90,7 +90,7 @@ helm upgrade --install bulkhead-platform "oci://$REGISTRY/bulkhead-platform" --v
 kubectl get validatingpolicies.policies.kyverno.io
 ```
 
-Both policies should show as ready. The service accounts in `kube-system` and the user `system:kube-controller-manager` are always allowed, so that Kubernetes can delete a tenant namespace.
+All three policies (`disallow-latest-image-tag`, `disallow-latest-image-tag-ephemeral` and `protect-platform-objects`) should show as ready. The service accounts in `kube-system` and the user `system:kube-controller-manager` are always allowed, so that Kubernetes can delete a tenant namespace.
 
 Other values: `exceptions.namespace` (must match Kyverno's `features.policyExceptions.namespace`), `kyverno.namespace` and `kyverno.cleanupServiceAccount` (where Kyverno's cleanup controller runs), and `runbookBaseURL` (where your copy of the runbooks is published). They are listed in `charts/bulkhead-platform/values.yaml`.
 

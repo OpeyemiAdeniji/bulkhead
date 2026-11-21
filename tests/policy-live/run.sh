@@ -18,7 +18,7 @@ CONTEXT="${KUBE_CONTEXT:-kind-bulkhead}"
 A="tenant-alpha"
 POLICY="disallow-latest-image-tag"
 RUNBOOK="docs/runbooks/policy-disallow-latest-tag.md"
-EXPECTED=29
+EXPECTED=31
 if [ "${WITH_EXPIRY:-0}" = "1" ]; then
   EXPECTED=33
 fi
@@ -242,6 +242,25 @@ deployment_manifest live-update-deploy busybox:1.36 "$A" | as_alpha create -f - 
 sleep 3
 expect_blocked "changing the image of a running pod to latest is denied" "Policy $POLICY failed" patch_image_as_alpha pod live-update-pod /spec/containers/0/image
 expect_blocked "changing the image of a deployment to latest is denied at the deployment itself" "Policy $POLICY failed" patch_image_as_alpha deployment live-update-deploy /spec/template/spec/containers/0/image
+
+# Ephemeral containers are added through their own subresource (kubectl debug). Tenant admins
+# may not add them, so the platform admin tries: the policy holds for every identity.
+k -n "$A" wait --for=condition=Ready pod/live-update-pod --timeout=120s > /dev/null 2>&1 || true
+add_debug_container() { # NAME IMAGE
+  k -n "$A" debug pod/live-update-pod --image="$2" --profile=restricted -c "$1" -- sleep 1
+}
+if out="$(add_debug_container live-debug-latest busybox:latest 2>&1)"; then
+  fail "an ephemeral container with busybox:latest is denied (it was added)"
+else
+  missing="$(denial_missing "$out" "denied the request" "Policy $POLICY-ephemeral failed" "busybox:latest" "Fix:" "Runbook:" "$RUNBOOK")"
+  if [ -z "$missing" ]; then
+    pass "an ephemeral container with busybox:latest is denied, with the fix and the runbook link"
+  else
+    fail "the ephemeral container denial is missing:$missing"
+    echo "      output: $(head -c 400 <<< "$out")"
+  fi
+fi
+expect_ok "an ephemeral container with busybox:1.36 is added" add_debug_container live-debug-pinned busybox:1.36
 
 echo "== a tenant admin cannot change policies or exceptions (real attempts, server-side dry run)"
 helm template bulkhead-platform charts/bulkhead-platform -s "templates/$POLICY.yaml" > "$work/policy.yaml"
