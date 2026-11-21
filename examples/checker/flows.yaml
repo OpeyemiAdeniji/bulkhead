@@ -1,0 +1,23 @@
+# Flows that a team declares for bulkhead check --flows (docs/declared-flows.md).
+# Tenant alpha may reach the shared database; tenant bravo may not. The allowed flow also
+# shows that the database answers, which the blocked flow needs to count.
+apiVersion: bulkhead.io/v1alpha1
+kind: Flows
+flows:
+  - name: alpha-to-shared-db
+    description: The orders service of tenant alpha writes to the shared database.
+    from: tenant-alpha
+    to:
+      service: postgres
+      namespace: shared-db
+      port: 5432
+    expect: allowed
+
+  - name: bravo-not-to-shared-db
+    description: Tenant bravo has no business with the shared database.
+    from: tenant-bravo
+    to:
+      service: postgres
+      namespace: shared-db
+      port: 5432
+    expect: blocked

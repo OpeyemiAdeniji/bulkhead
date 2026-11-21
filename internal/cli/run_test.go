@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -221,5 +223,50 @@ func TestRunUsageErrors(t *testing.T) {
 		if code, _, errOut := run(t, args...); code != exitcode.Usage {
 			t.Errorf("%v: code %d (%s), want a usage error", args, code, errOut)
 		}
+	}
+}
+
+// TestFlowsFileErrorsStopBeforeTheCluster: a wrong flows file is a usage error, found before
+// anything is sent, with a message that says what is wrong.
+func TestFlowsFileErrorsStopBeforeTheCluster(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, content string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	head := "apiVersion: bulkhead.io/v1alpha1\nkind: Flows\nflows:\n"
+	good := write("good.yaml", head+"  - {name: x, from: tenant-alpha, to: {service: db, namespace: shared, port: 5432}, expect: allowed}\n")
+	unpaired := write("unpaired.yaml", head+"  - {name: x, from: tenant-alpha, to: {service: db, namespace: shared, port: 5432}, expect: blocked}\n")
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--tenant", "tenant-alpha", "--flows", filepath.Join(dir, "missing.yaml")}, "no such file"},
+		{[]string{"--tenant", "tenant-alpha", "--flows", unpaired}, "needs an allowed flow to the same destination"},
+		{[]string{"--tenant", "tenant-bravo", "--flows", good}, "flows must start in a tenant under test"},
+		{[]string{"--tenant", "tenant-alpha", "--id", "FLW-01"}, "need a flows file"},
+		{[]string{"--tenant", "tenant-alpha", "--category", "flows"}, "need a flows file"},
+	} {
+		code, out, errOut := run(t, append([]string{"check"}, c.args...)...)
+		if code != exitcode.Usage || !strings.Contains(errOut, c.want) || out != "" {
+			t.Errorf("%v: code %d, stderr %q, want a usage error with %q", c.args, code, errOut, c.want)
+		}
+	}
+}
+
+// TestTheFlowChecksRunOnlyWithAFile: without --flows a run does not list FLW results, and
+// --list shows the checks anyway.
+func TestTheFlowChecksRunOnlyWithAFile(t *testing.T) {
+	fakeCluster(t, false)
+	_, out, _ := run(t, "check", "--tenant", "tenant-alpha", "--tenant", "tenant-bravo", "--read-only", "-o", "json")
+	if strings.Contains(out, "FLW-0") {
+		t.Error("a run without --flows reports the declared flow checks")
+	}
+	_, list, _ := run(t, "check", "--list", "--category", "flows")
+	if !strings.Contains(list, "FLW-01") || !strings.Contains(list, "FLW-02") {
+		t.Errorf("--list must show the declared flow checks:\n%s", list)
 	}
 }

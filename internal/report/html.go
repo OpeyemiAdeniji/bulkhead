@@ -47,7 +47,7 @@ type row struct {
 var sectionTitles = map[catalog.Category]string{
 	catalog.Access: "Access between tenants", catalog.Guardrails: "Guardrails the tenant cannot change",
 	catalog.Admission: "Admission of pods", catalog.Network: "Network isolation", catalog.Resources: "Noisy neighbours",
-	catalog.Quota: "Quota and limits", catalog.Operators: "Operators (research)",
+	catalog.Quota: "Quota and limits", catalog.Flows: "Declared flows", catalog.Operators: "Operators (research)",
 }
 
 func writeHTML(w io.Writer, r *Report) error {
@@ -147,7 +147,9 @@ type cell struct {
 func buildMatrix(r *Report) *matrix {
 	var flows []runner.Result
 	for _, res := range r.Results {
-		if res.From != "" && res.To != "" {
+		// Declared flows have their own expectations, not the matrix's (a tenant reaches itself
+		// and DNS, nothing else), so they are listed in their own section instead.
+		if res.From != "" && res.To != "" && r.Check(res.Check).Category != catalog.Flows {
 			flows = append(flows, res)
 		}
 	}

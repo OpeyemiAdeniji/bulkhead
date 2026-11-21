@@ -15,6 +15,7 @@ import (
 	"github.com/OpeyemiAdeniji/bulkhead/internal/catalog"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/checks" // also registers the implemented checks
 	"github.com/OpeyemiAdeniji/bulkhead/internal/exitcode"
+	"github.com/OpeyemiAdeniji/bulkhead/internal/flows"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/kube"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/policyreport"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/report"
@@ -42,6 +43,8 @@ type checkOptions struct {
 	readOnly      bool
 	dryRun        bool
 	policyReports bool
+	flowsPath     string
+	flows         *flows.File
 	reportSpecs   []string
 	reports       []reportFile
 	timeout       time.Duration
@@ -66,7 +69,8 @@ func newCheck() *cobra.Command {
 		Example: "  bulkhead check --list\n" +
 			"  bulkhead check --tenant tenant-alpha --tenant tenant-bravo --dry-run\n" +
 			"  bulkhead check --context prod --tenant team-a --tenant team-b --read-only\n" +
-			"  bulkhead check --tenant tenant-alpha --tenant tenant-bravo --category network -o json",
+			"  bulkhead check --tenant tenant-alpha --tenant tenant-bravo --category network -o json\n" +
+			"  bulkhead check --tenant tenant-alpha --tenant tenant-bravo --flows flows.yaml",
 		Args: noArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error { return o.run(cmd.Context(), cmd.OutOrStdout()) },
 	}
@@ -85,6 +89,7 @@ func newCheck() *cobra.Command {
 	f.BoolVar(&o.readOnly, "read-only", false, "run only checks that store nothing (safe on production clusters)")
 	f.BoolVar(&o.dryRun, "dry-run", false, "send nothing; print every request the run would send")
 	f.BoolVar(&o.policyReports, "policy-reports", false, "also store the results in the cluster, as a PolicyReport (wgpolicyk8s.io/v1alpha2) named "+policyreport.Name+" in each tenant namespace")
+	f.StringVar(&o.flowsPath, "flows", "", "also probe the flows declared in this file (FLW-01, FLW-02; schemas/flows.schema.json)")
 	f.DurationVar(&o.timeout, "timeout", 15*time.Minute, "time limit of the whole run")
 	f.DurationVar(&o.checkTimeout, "check-timeout", 3*time.Minute, "time limit of each check")
 	return cmd
@@ -122,6 +127,18 @@ func (o *checkOptions) run(ctx context.Context, w io.Writer) error {
 	}
 	if err := o.tenants.Validate(); err != nil {
 		return exitcode.Usagef("%v", err)
+	}
+	// The flows file is checked before the cluster is contacted, so a mistake in it costs nothing.
+	if o.flowsPath != "" {
+		if o.flows, err = flows.Load(o.flowsPath); err != nil {
+			return exitcode.Usagef("--flows %v", err)
+		}
+		if err := o.flows.CheckSources(o.tenants.Namespaces); err != nil {
+			return exitcode.Usagef("--flows %s: %v", o.flowsPath, err)
+		}
+	}
+	if o.flows == nil && o.asksForFlows() {
+		return exitcode.Usagef("the declared flow checks (FLW-01, FLW-02) need a flows file: --flows FILE")
 	}
 	selected, err := o.selected(true)
 	if err != nil {
@@ -171,7 +188,7 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 			return exitcode.Errorf("%v", err)
 		}
 	}
-	env := &runner.Env{Cluster: cluster, Tenants: tenants, Sandbox: sb, Impersonate: impersonate(cluster)}
+	env := &runner.Env{Cluster: cluster, Tenants: tenants, Sandbox: sb, Impersonate: impersonate(cluster), Flows: o.flows}
 
 	// From here on, objects may be created. Clean-up runs once: before the report is printed,
 	// and on every early return. It uses a fresh context, so it also runs after Ctrl+C or the timeout.
@@ -260,6 +277,21 @@ func writePolicyReports(dyn dynamic.Interface, rep *report.Report, interrupted e
 	return err
 }
 
+// asksForFlows reports whether --id or --category names the declared flow checks.
+func (o *checkOptions) asksForFlows() bool {
+	for _, id := range o.ids {
+		if c, ok := catalog.Get(strings.TrimSpace(id)); ok && c.Category == catalog.Flows {
+			return true
+		}
+	}
+	for _, s := range o.categories {
+		if c, err := catalog.ParseCategory(s); err == nil && c == catalog.Flows {
+			return true
+		}
+	}
+	return false
+}
+
 func (o *checkOptions) selected(run bool) ([]catalog.Check, error) {
 	cats := map[catalog.Category]bool{}
 	for _, s := range o.categories {
@@ -291,6 +323,10 @@ func (o *checkOptions) selected(run bool) ([]catalog.Check, error) {
 	var out []catalog.Check
 	for _, c := range catalog.All() {
 		if len(cats) > 0 && !cats[c.Category] {
+			continue
+		}
+		// The declared flows run only with a flows file; --list shows them always.
+		if run && c.Category == catalog.Flows && o.flows == nil {
 			continue
 		}
 		if len(levels) > 0 && !levels[c.Level] {

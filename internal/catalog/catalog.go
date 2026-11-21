@@ -19,12 +19,16 @@ const (
 	Network    Category = "network"
 	Resources  Category = "resources"
 	Quota      Category = "quota"
-	Operators  Category = "operators"
+	// Flows are the flows a team declares in a file (--flows, docs/adr/0019-declared-flows-file.md).
+	Flows     Category = "flows"
+	Operators Category = "operators"
 )
 
 // Categories returns every category in listing order.
 func Categories() []Category {
-	return []Category{Access, Guardrails, Admission, Network, Resources, Quota, Operators}
+	// Flows follow Network, so that they reuse its client pods before the resource and quota
+	// checks remove them.
+	return []Category{Access, Guardrails, Admission, Network, Flows, Resources, Quota, Operators}
 }
 
 // Level says when a check runs.
