@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/OpeyemiAdeniji/bulkhead/schemas/operator-refs.schema.json",
+  "title": "Operator references for bulkhead check",
+  "description": "Namespace fields of custom resources that XNS-01 and XNS-02 test at admission, with server-side dry runs (bulkhead check --operator-refs, docs/adr/0021-operator-reference-checks.md).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "references"],
+  "properties": {
+    "apiVersion": { "const": "bulkhead.io/v1alpha1" },
+    "kind": { "const": "OperatorReferences" },
+    "references": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/reference" }
+    }
+  },
+  "$defs": {
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "apiVersion", "kind", "resource", "namespacePath"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$" },
+        "apiVersion": {
+          "description": "group/version of the custom resource.",
+          "type": "string",
+          "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?/v[0-9]+((alpha|beta)[0-9]+)?$"
+        },
+        "kind": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]{0,62}$" },
+        "resource": { "description": "The plural name of the resource.", "type": "string", "pattern": "^[a-z][a-z0-9]{0,62}$" },
+        "namespacePath": {
+          "description": "The dot-separated path of the namespace field, outside metadata.",
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)+$",
+          "not": { "pattern": "^metadata\\." }
+        },
+        "body": {
+          "description": "The smallest object the resource's schema accepts, without apiVersion, kind and metadata.",
+          "type": "object",
+          "not": { "anyOf": [{ "required": ["apiVersion"] }, { "required": ["kind"] }, { "required": ["metadata"] }] }
+        }
+      }
+    }
+  }
+}

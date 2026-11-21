@@ -252,6 +252,8 @@ type state struct {
 	probes map[string]probeOutcome
 	// workloads holds the probe container of each namespace and selector (ADR 0020).
 	workloads map[string]*workloadTarget
+	// xnsOwn holds the answer to each reference to the tenant's own namespace (XNS-01).
+	xnsOwn map[string]error
 }
 
 var states sync.Map // *sandbox.Sandbox -> *state

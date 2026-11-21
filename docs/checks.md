@@ -51,8 +51,8 @@ The same list is printed by `bulkhead check --list`, and as JSON by `bulkhead ch
 | [QTA-07](#qta-07) | basic | read-only | allowed | - | A pod without resources receives the default limits |
 | [QTA-08](#qta-08) | basic | active | allowed | - | As many pods as the quota allows can be created |
 | [QTA-09](#qta-09) | basic | active | blocked | [QTA-08](#qta-08) | One pod more than the quota's pod count is refused |
-| [XNS-01](#xns-01) | research | active | allowed | - | An operator acts on a reference to the tenant's own objects |
-| [XNS-02](#xns-02) | research | active | blocked | [XNS-01](#xns-01) | An operator does not follow a reference into another tenant's namespace |
+| [XNS-01](#xns-01) | research | read-only | allowed | - | A custom resource that references the tenant's own namespace is accepted |
+| [XNS-02](#xns-02) | research | read-only | blocked | [XNS-01](#xns-01) | A custom resource that references another tenant's namespace is refused |
 
 ## Access between tenants
 
@@ -518,22 +518,22 @@ Level basic, active, expected result: blocked. Pair: [QTA-08](#qta-08).
 
 ### XNS-01
 
-**An operator acts on a reference to the tenant's own objects**
+**A custom resource that references the tenant's own namespace is accepted**
 
-Level research, active, expected result: allowed. Pair: none, this check makes other results trustworthy.
+Level research, read-only, expected result: allowed. Pair: none, this check makes other results trustworthy.
 
-- **Proves:** The operator under test works for the tenant, so its refusal in XNS-02 is about the other namespace.
-- **Does not prove:** Anything about operators that are not tested.
-- **How:** For an installed operator, create a custom resource in tenant A that references an object in tenant A, and check that the operator acts on it.
-- **Fix when it fails:** Check that the operator is installed and watches the tenant's namespace.
+- **Proves:** The tenant admin may create the listed custom resource, and the body in the references file is valid, so a refusal in XNS-02 is about the other namespace.
+- **Does not prove:** That the operator handles the resource correctly: the request is a dry run, so no operator sees it.
+- **How:** As the tenant admin, create the custom resource in tenant A as a server-side dry run, with its namespace field (namespacePath in --operator-refs) set to tenant A. It must be accepted. Nothing is stored.
+- **Fix when it fails:** Give tenant admins the right to create the resource, or correct the body and the namespacePath in the references file.
 
 ### XNS-02
 
-**An operator does not follow a reference into another tenant's namespace**
+**A custom resource that references another tenant's namespace is refused**
 
-Level research, active, expected result: blocked. Pair: [XNS-01](#xns-01).
+Level research, read-only, expected result: blocked. Pair: [XNS-01](#xns-01).
 
-- **Proves:** The operator does not read or change another tenant's objects for tenant A, a class of weakness described in "Breaking the Bulkhead" (NDSS 2026).
-- **Does not prove:** That other fields or other custom resources of the same operator are safe. Only the tested reference is.
-- **How:** Create a custom resource in tenant A that references an object in tenant B, and check that the operator refuses or ignores it.
-- **Fix when it fails:** Upgrade or configure the operator so that it only follows references within the namespace of the resource, or restrict which namespaces it serves.
+- **Proves:** Tenant A cannot even submit a resource that would make an operator read or change tenant B's objects, the class of weakness described in "Breaking the Bulkhead" (NDSS 2026). The refusal comes before any operator sees the resource, whatever the operator's code does.
+- **Does not prove:** That the operator itself is safe: without the admission rule, a vulnerable operator would follow the reference. Other fields, and references that lead to cluster-wide objects, are not tested.
+- **How:** As the admin of tenant A, create the same custom resource in tenant A as a server-side dry run, with its namespace field set to tenant B. It must be refused at admission. It counts only when XNS-01 passed for the same reference and tenant.
+- **Fix when it fails:** Add an admission rule (a ValidatingAdmissionPolicy or a policy engine) that refuses the resource when its namespace field differs from the resource's own namespace, or when the requester may not access the referenced object.

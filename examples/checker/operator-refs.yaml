@@ -1,0 +1,19 @@
+# References that bulkhead check --operator-refs tests at admission (docs/operator-references.md).
+# Each entry names a custom resource of an installed operator and the path of a namespace field
+# in it. XNS-01 sends a dry run that points the field at the tenant's own namespace (must be
+# accepted), XNS-02 one that points it at another tenant's namespace (must be refused).
+# Nothing is stored, so the operator never sees either resource.
+apiVersion: bulkhead.io/v1alpha1
+kind: OperatorReferences
+references:
+  # An example shape: a custom resource with a Secret reference that names its own namespace.
+  # Replace it with the resources of the operators on your cluster.
+  - name: app-database-secret
+    apiVersion: apps.example.com/v1
+    kind: Application
+    resource: applications
+    namespacePath: spec.databaseSecretRef.namespace
+    body:
+      spec:
+        databaseSecretRef:
+          name: database-credentials

@@ -17,6 +17,7 @@ import (
 	"github.com/OpeyemiAdeniji/bulkhead/internal/exitcode"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/flows"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/kube"
+	"github.com/OpeyemiAdeniji/bulkhead/internal/operatorrefs"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/policyreport"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/report"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/runner"
@@ -46,6 +47,8 @@ type checkOptions struct {
 	probeWorkloads bool
 	flowsPath      string
 	flows          *flows.File
+	refsPath       string
+	refs           *operatorrefs.File
 	reportSpecs    []string
 	reports        []reportFile
 	timeout        time.Duration
@@ -91,6 +94,7 @@ func newCheck() *cobra.Command {
 	f.BoolVar(&o.dryRun, "dry-run", false, "send nothing; print every request the run would send")
 	f.BoolVar(&o.policyReports, "policy-reports", false, "also store the results in the cluster, as a PolicyReport (wgpolicyk8s.io/v1alpha2) named "+policyreport.Name+" in each tenant namespace")
 	f.StringVar(&o.flowsPath, "flows", "", "also probe the flows declared in this file (FLW-01, FLW-02; schemas/flows.schema.json)")
+	f.StringVar(&o.refsPath, "operator-refs", "", "test the cross-namespace references of custom resources in this file at admission, with dry runs (XNS-01, XNS-02, research level: add --level research)")
 	f.BoolVar(&o.probeWorkloads, "probe-workloads", false, "allow flows with via: probe from inside a running pod, in an ephemeral container that stays in the pod's spec until the pod is replaced")
 	f.DurationVar(&o.timeout, "timeout", 15*time.Minute, "time limit of the whole run")
 	f.DurationVar(&o.checkTimeout, "check-timeout", 3*time.Minute, "time limit of each check")
@@ -146,8 +150,16 @@ func (o *checkOptions) run(ctx context.Context, w io.Writer) error {
 				"that Kubernetes cannot remove until the pod is replaced (docs/adr/0020-probes-from-workloads.md); allow that with --probe-workloads", o.flowsPath)
 		}
 	}
-	if o.flows == nil && o.asksForFlows() {
+	if o.flows == nil && o.asksFor(catalog.Flows) {
 		return exitcode.Usagef("the declared flow checks (FLW-01, FLW-02) need a flows file: --flows FILE")
+	}
+	if o.refsPath != "" {
+		if o.refs, err = operatorrefs.Load(o.refsPath); err != nil {
+			return exitcode.Usagef("--operator-refs %v", err)
+		}
+	}
+	if o.refs == nil && o.asksFor(catalog.Operators) {
+		return exitcode.Usagef("the operator reference checks (XNS-01, XNS-02) need a references file: --operator-refs FILE")
 	}
 	selected, err := o.selected(true)
 	if err != nil {
@@ -203,7 +215,7 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 			return exitcode.Errorf("%v", err)
 		}
 	}
-	env := &runner.Env{Cluster: cluster, Tenants: tenants, Sandbox: sb, Impersonate: impersonate(cluster), Flows: o.flows, ProbeWorkloads: probing}
+	env := &runner.Env{Cluster: cluster, Tenants: tenants, Sandbox: sb, Impersonate: impersonate(cluster), Flows: o.flows, ProbeWorkloads: probing, OperatorRefs: o.refs}
 
 	// From here on, objects may be created. Clean-up runs once: before the report is printed,
 	// and on every early return. It uses a fresh context, so it also runs after Ctrl+C or the timeout.
@@ -298,15 +310,15 @@ func writePolicyReports(dyn dynamic.Interface, rep *report.Report, interrupted e
 	return err
 }
 
-// asksForFlows reports whether --id or --category names the declared flow checks.
-func (o *checkOptions) asksForFlows() bool {
+// asksFor reports whether --id or --category names a check of the category.
+func (o *checkOptions) asksFor(cat catalog.Category) bool {
 	for _, id := range o.ids {
-		if c, ok := catalog.Get(strings.TrimSpace(id)); ok && c.Category == catalog.Flows {
+		if c, ok := catalog.Get(strings.TrimSpace(id)); ok && c.Category == cat {
 			return true
 		}
 	}
 	for _, s := range o.categories {
-		if c, err := catalog.ParseCategory(s); err == nil && c == catalog.Flows {
+		if c, err := catalog.ParseCategory(s); err == nil && c == cat {
 			return true
 		}
 	}
@@ -348,6 +360,10 @@ func (o *checkOptions) selected(run bool) ([]catalog.Check, error) {
 		}
 		// The declared flows run only with a flows file; --list shows them always.
 		if run && c.Category == catalog.Flows && o.flows == nil {
+			continue
+		}
+		// The same for the operator reference checks and their references file.
+		if run && c.Category == catalog.Operators && o.refs == nil {
 			continue
 		}
 		if len(levels) > 0 && !levels[c.Level] {

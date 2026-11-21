@@ -22,6 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/yaml"
+
+	"github.com/OpeyemiAdeniji/bulkhead/schemas"
 )
 
 // APIVersion and Kind identify the file. v1alpha1 may change before v1.0 of Bulkhead.
@@ -161,6 +163,10 @@ func Parse(data []byte) (*File, error) {
 		return nil, errors.New("holds more than one document; put every flow in one list")
 	}
 	if err := f.check(); err != nil {
+		return nil, err
+	}
+	// The schema matches field names exactly; the decoder above does not ("Expect:" would pass).
+	if err := schemas.Validate(schemas.Flows, js); err != nil {
 		return nil, err
 	}
 	return &f, nil
