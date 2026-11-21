@@ -69,7 +69,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
 <dl class="facts">
   <dt>Cluster</dt><dd><code>{{.R.Run.Context}}</code>, {{.R.Run.Server}}</dd>
   <dt>Kubernetes</dt><dd>{{.R.Run.Kubernetes}}</dd>
-  <dt>Run</dt><dd><code>{{.R.Run.ID}}</code>, mode {{.R.Run.Mode}}{{if .R.Run.Interrupted}}, {{.R.Run.Interrupted}}{{end}}</dd>
+  <dt>Run</dt><dd><code>{{.R.Run.ID}}</code>, mode {{.R.Run.Mode}}, profile {{.R.Run.Profile}}{{if .R.Run.Interrupted}}, {{.R.Run.Interrupted}}{{end}}</dd>
   <dt>Time</dt><dd>{{.R.Run.StartedAt.Format "2006-01-02 15:04:05 MST"}}, {{.Duration}}</dd>
   <dt>Run by</dt><dd>{{.R.Run.User}}</dd>
   <dt>Identities</dt><dd>{{if .R.Run.IdentitiesConfirmed}}every tenant identity was confirmed with the API server (SelfSubjectReview){{else}}not confirmed (dry run){{end}}</dd>

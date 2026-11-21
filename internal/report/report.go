@@ -60,8 +60,10 @@ type Tool struct {
 
 // Run describes the run.
 type Run struct {
-	ID                  string    `json:"id"`
-	Mode                string    `json:"mode"`
+	ID   string `json:"id"`
+	Mode string `json:"mode"`
+	// Profile is the tenancy profile (docs/adr/0022-tenancy-profiles.md).
+	Profile             string    `json:"profile"`
 	StartedAt           time.Time `json:"startedAt"`
 	FinishedAt          time.Time `json:"finishedAt"`
 	Context             string    `json:"context"`

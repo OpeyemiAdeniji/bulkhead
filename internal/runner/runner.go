@@ -68,6 +68,10 @@ type Env struct {
 	ProbeWorkloads bool
 	// OperatorRefs are the references XNS-01 and XNS-02 test (--operator-refs, ADR 0021), or nil.
 	OperatorRefs *operatorrefs.File
+	// Profile is the tenancy profile of the run (ADR 0022).
+	Profile string
+	// NotApplicable returns why a check does not apply to the profile, or "". Nil: all apply.
+	NotApplicable func(checkID string) string
 }
 
 // Func runs one check and returns one result per subject.
@@ -162,6 +166,13 @@ func Run(ctx context.Context, env *Env, o Options) []Result {
 		if ctx.Err() != nil {
 			results = append(results, Result{Check: c.ID, Status: Skipped, Message: "the run was interrupted or reached its timeout"})
 			continue
+		}
+		// Whether a check applies to the platform comes before how this run is limited.
+		if env.NotApplicable != nil {
+			if why := env.NotApplicable(c.ID); why != "" {
+				results = append(results, Result{Check: c.ID, Status: Skipped, Message: fmt.Sprintf("does not apply to the %s profile: %s", env.Profile, why)})
+				continue
+			}
 		}
 		if c.Mode == catalog.Active && env.Sandbox.Mode == sandbox.ReadOnly {
 			results = append(results, Result{Check: c.ID, Status: Skipped, Message: "active check, not run in read-only mode"})

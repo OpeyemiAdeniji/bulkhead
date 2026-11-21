@@ -86,6 +86,7 @@ func newCheck() *cobra.Command {
 	f.StringSliceVar(&o.levels, "level", nil, "only these levels: basic, hardened, research (default: basic for a run, all for --list)")
 	f.StringSliceVar(&o.ids, "id", nil, "only these checks, for example NET-04 (their pairs are added)")
 	addKubeFlags(f, &o.kube)
+	f.StringVar(&o.tenants.Profile, "profile", tenant.ProfileNamespaces, "how the platform models tenants: "+strings.Join(tenant.Profiles(), ", ")+" (docs/adr/0022-tenancy-profiles.md)")
 	f.StringSliceVar(&o.tenants.Namespaces, "tenant", nil, "a tenant namespace to test (repeat, two or more for the checks between tenants)")
 	f.StringVar(&o.tenants.AdminBinding, "admin-binding", tenant.DefaultAdminBinding, "role binding in each tenant namespace whose subject is the tenant admin")
 	f.StringVar(&o.tenants.ViewerBinding, "viewer-binding", tenant.DefaultViewerBinding, "role binding whose subject is the tenant viewer (empty: no viewer checks)")
@@ -186,7 +187,7 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 		mode = sandbox.ReadOnly
 	}
 	sb := sandbox.New(mode)
-	rep.Run.ID, rep.Run.Mode = sb.RunID, string(mode)
+	rep.Run.ID, rep.Run.Mode, rep.Run.Profile = sb.RunID, string(mode), o.tenants.Profile
 	if rep.Run.Kubernetes, err = cluster.ServerVersion(); err != nil {
 		return exitcode.Errorf("reach the cluster of context %q at %s: %v", cluster.Context, cluster.Server, err)
 	}
@@ -215,7 +216,8 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 			return exitcode.Errorf("%v", err)
 		}
 	}
-	env := &runner.Env{Cluster: cluster, Tenants: tenants, Sandbox: sb, Impersonate: impersonate(cluster), Flows: o.flows, ProbeWorkloads: probing, OperatorRefs: o.refs}
+	env := &runner.Env{Cluster: cluster, Tenants: tenants, Sandbox: sb, Impersonate: impersonate(cluster), Flows: o.flows, ProbeWorkloads: probing, OperatorRefs: o.refs, Profile: o.tenants.Profile,
+		NotApplicable: func(id string) string { return tenant.NotApplicable(o.tenants.Profile, id) }}
 
 	// From here on, objects may be created. Clean-up runs once: before the report is printed,
 	// and on every early return. It uses a fresh context, so it also runs after Ctrl+C or the timeout.

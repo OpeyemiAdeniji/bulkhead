@@ -22,10 +22,11 @@
     "run": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "mode", "startedAt", "finishedAt", "context", "server", "kubernetes", "user", "identitiesConfirmed"],
+      "required": ["id", "mode", "profile", "startedAt", "finishedAt", "context", "server", "kubernetes", "user", "identitiesConfirmed"],
       "properties": {
         "id": { "type": "string", "pattern": "^[0-9]{8}t[0-9]{6}-[0-9a-f]{8}$" },
         "mode": { "enum": ["live", "read-only", "dry-run"] },
+        "profile": { "description": "The tenancy profile (docs/adr/0022-tenancy-profiles.md).", "enum": ["namespaces"] },
         "startedAt": { "type": "string", "format": "date-time" },
         "finishedAt": { "type": "string", "format": "date-time" },
         "context": { "type": "string" },

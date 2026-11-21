@@ -33,6 +33,8 @@ type Tenant struct {
 // Options says how the identities of a tenant are found: from the subjects of two role
 // bindings in its namespace. The defaults are the bindings of Bulkhead's tenant chart.
 type Options struct {
+	// Profile is how the platform models tenants (profile.go); "" means ProfileNamespaces.
+	Profile       string
 	Namespaces    []string
 	AdminBinding  string
 	ViewerBinding string
@@ -54,6 +56,11 @@ var ErrNotATenant = errors.New("not a tenant namespace")
 
 // Validate checks the options without a cluster.
 func (o Options) Validate() error {
+	if o.Profile != "" {
+		if err := CheckProfile(o.Profile); err != nil {
+			return err
+		}
+	}
 	if len(o.Namespaces) == 0 {
 		return fmt.Errorf("name the tenant namespaces with --tenant (at least one, two or more for the checks between tenants)")
 	}
