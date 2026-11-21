@@ -33,7 +33,7 @@ func sample() *report.Report {
 	}
 	r := report.New(cs)
 	start := time.Date(2026, 11, 16, 13, 0, 0, 0, time.UTC)
-	r.Run = report.Run{ID: "20261116t130000-1a2b3c4d", Mode: "live", StartedAt: start, FinishedAt: start.Add(80 * time.Second),
+	r.Run = report.Run{ID: "20261116t130000-1a2b3c4d", Mode: "live", Profile: "namespaces", StartedAt: start, FinishedAt: start.Add(80 * time.Second),
 		Context: "kind-bulkhead", Server: "https://127.0.0.1:6443", Kubernetes: "v1.37.0", User: "kubernetes-admin", IdentitiesConfirmed: true}
 	r.Tenants = []tenant.Tenant{
 		{Name: "tenant-alpha", Namespace: "tenant-alpha", Admin: kube.Identity{User: "bulkhead-check", Groups: []string{"alpha-admins"}}, Viewer: &kube.Identity{User: "bulkhead-check", Groups: []string{"alpha-viewers"}}},

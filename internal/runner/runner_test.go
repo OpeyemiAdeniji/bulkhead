@@ -162,3 +162,21 @@ func TestRegisterPanicsOnMistakes(t *testing.T) {
 		}()
 	}
 }
+
+// TestAProfileSkipsTheChecksThatDoNotApply: a check that does not apply to the profile is
+// skipped with the reason, and the other checks run.
+func TestAProfileSkipsTheChecksThatDoNotApply(t *testing.T) {
+	env := &Env{Sandbox: sandbox.New(sandbox.ReadOnly), Profile: "example", NotApplicable: func(id string) string {
+		if id == "NET-01" {
+			return "tenants have no network of their own here"
+		}
+		return ""
+	}}
+	rs := Run(context.Background(), env, Options{Checks: checks("NET-01", "NET-02"), CheckTimeout: time.Second})
+	if rs[0].Status != Skipped || rs[0].Message != "does not apply to the example profile: tenants have no network of their own here" {
+		t.Errorf("NET-01: %+v", rs[0])
+	}
+	if rs[1].Message == rs[0].Message {
+		t.Errorf("NET-02 must not be skipped for the profile: %+v", rs[1])
+	}
+}

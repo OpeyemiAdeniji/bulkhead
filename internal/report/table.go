@@ -15,7 +15,7 @@ func writeTable(w io.Writer, r *Report) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Cluster:  context %s, %s, Kubernetes %s\n", r.Run.Context, r.Run.Server, r.Run.Kubernetes)
 	fmt.Fprintf(&b, "You:      %s\n", r.Run.User)
-	fmt.Fprintf(&b, "Run:      %s (%s)\n", r.Run.ID, r.Run.Mode)
+	fmt.Fprintf(&b, "Run:      %s (%s), profile %s\n", r.Run.ID, r.Run.Mode, r.Run.Profile)
 	for i, t := range r.Tenants {
 		label := "Tenants:"
 		if i > 0 {

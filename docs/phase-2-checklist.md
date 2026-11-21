@@ -47,7 +47,7 @@ One item of this package waits for the first active check, because only then doe
 ## 5. Reports and exit codes
 
 - [x] A terminal table with the result, the deciding layer and the fix for each failure.
-- [x] JSON with a published JSON Schema (`schemas/check-report.schema.json`, `apiVersion: bulkhead.io/v1alpha1`), including the versions, mode, tenants, the text of every check, the requests of a dry run and the exit code. A unit test validates a report with every status, and the end-to-end test validates the report of a real run on kind. The profile is added with work package 7.
+- [x] JSON with a published JSON Schema (`schemas/check-report.schema.json`, `apiVersion: bulkhead.io/v1alpha1`), including the versions, mode, tenants, the text of every check, the requests of a dry run and the exit code. A unit test validates a report with every status, and the end-to-end test validates the report of a real run on kind. The tenancy profile is in `run.profile` since work package 7.
 - [x] JUnit XML for CI systems.
 - [x] SARIF 2.1.0 for GitHub code scanning (`docs/check-reports.md`).
 - [x] An HTML report that can be kept as evidence, with a source by destination matrix for the network checks (including DNS and the internet). One self-contained file, escaped with `html/template`, light and dark, printable.
@@ -62,7 +62,7 @@ One item of this package waits for the first active check, because only then doe
 
 ## 7. Tenancy profiles
 
-- [ ] Profile "namespaces": a plain namespace per tenant, as Bulkhead's charts make. Tested in CI.
+- [x] Profile "namespaces": a plain namespace per tenant, as Bulkhead's charts make. Tested in CI. `--profile namespaces` (the default, [ADR 0022](adr/0022-tenancy-profiles.md)); the end-to-end test also runs it on two namespaces that Bulkhead did not make, with their own role binding (`--admin-binding`).
 - [ ] Profile "capsule", tested in CI against Capsule.
 - [ ] Profile "vcluster", tested in CI against vCluster.
 

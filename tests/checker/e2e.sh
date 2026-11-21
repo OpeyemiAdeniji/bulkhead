@@ -94,9 +94,9 @@ expect 0 "a run confirms each identity, and every check passes" \
   "ACC-02 pass" "GRD-05 pass" "ADM-02 pass tenant-alpha" "refused by pod-security" "refused by quota (tenant-quota)" \
   "refused by limit-range" "NET-04 pass tenant-alpha -> tenant-bravo" "blocked: the connection timed out" \
   "RES-03 pass" "OOMKilled" "QTA-08 pass tenant-alpha" "filled the pod count" \
-  "0 fail" "Clean-up: removed 20 test objects" \
+  "0 fail" "Clean-up: removed 20 test objects" "profile namespaces" \
   "PolicyReports: wrote tenant-alpha/bulkhead-check, tenant-bravo/bulkhead-check." -- \
-  check "${TENANTS[@]}" --policy-reports
+  check "${TENANTS[@]}" --policy-reports --profile namespaces
 
 echo "== PolicyReport objects"
 # reports_match TOTAL FAILS-OF-ALPHA: the two reports hold every result of the last run, once,
@@ -469,6 +469,24 @@ for t in alpha bravo; do
 done
 k delete crd references.probe.bulkhead.io > /dev/null
 rm -f "$refs_file"
+
+echo "== the namespaces profile on namespaces that Bulkhead did not make"
+# Two plain namespaces, each with its team bound to the built-in admin role under another
+# binding name, as many platforms do it without Bulkhead's chart.
+for t in a b; do
+  k create namespace "e2e-plain-$t" > /dev/null
+  k -n "e2e-plain-$t" create rolebinding team-admins --clusterrole=admin --group="plain-$t-admins" > /dev/null
+  k -n "e2e-plain-$t" create secret generic e2e-secret --from-literal=k=v > /dev/null
+done
+expect 0 "with --admin-binding, the access checks run on plain namespaces" \
+  "profile namespaces" "e2e-plain-a: admin bulkhead-check (groups plain-a-admins), no viewer" \
+  "ACC-01 pass e2e-plain-a" "ACC-02 pass e2e-plain-a -> e2e-plain-b" "refused by rbac" -- \
+  check --context "$CONTEXT" --tenant e2e-plain-a --tenant e2e-plain-b --admin-binding team-admins --viewer-binding "" \
+  --read-only --id ACC-02,ACC-03
+k delete namespace e2e-plain-a e2e-plain-b --wait=false > /dev/null
+
+expect 2 "a profile that is not built yet is refused before the run" "the capsule profile is not built yet" -- \
+  check "${TENANTS[@]}" --profile capsule
 
 echo "== interrupt: Ctrl+C while test pods exist"
 "$BIN" check "${TENANTS[@]}" --category network > "$out" 2>&1 &
