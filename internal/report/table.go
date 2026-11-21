@@ -84,6 +84,10 @@ func writeTable(w io.Writer, r *Report) error {
 		}
 		tail.WriteString("\n")
 	}
+	if len(r.WorkloadProbes) > 0 {
+		fmt.Fprintf(&tail, "Probe containers were added to %s. Kubernetes keeps them in the pod's spec, stopped, until the pod is replaced.\n",
+			strings.Join(r.WorkloadProbes, ", "))
+	}
 	if p := r.PolicyReports; p != nil {
 		if len(p.Written) > 0 {
 			fmt.Fprintf(&tail, "PolicyReports: wrote %s.", strings.Join(p.Written, ", "))

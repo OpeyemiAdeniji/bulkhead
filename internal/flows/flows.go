@@ -11,12 +11,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/yaml"
 )
 
@@ -44,11 +48,44 @@ type File struct {
 // Flow is one declared flow.
 type Flow struct {
 	// Name identifies the flow in the reports. It is unique within the file.
-	Name        string      `json:"name"`
-	Description string      `json:"description,omitempty"`
-	From        string      `json:"from"`
-	To          Destination `json:"to"`
-	Expect      string      `json:"expect"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	From        string `json:"from"`
+	// Via selects a running pod in From by its labels, for example {app: orders}. The probe
+	// then runs inside that pod, in an ephemeral container (ADR 0020, --probe-workloads).
+	Via    map[string]string `json:"via,omitempty"`
+	To     Destination       `json:"to"`
+	Expect string            `json:"expect"`
+}
+
+// Selector is the label selector of Via, for example "app=orders", or "" without Via.
+func (fl Flow) Selector() string {
+	if len(fl.Via) == 0 {
+		return ""
+	}
+	return labels.SelectorFromSet(fl.Via).String()
+}
+
+// UsesWorkloads reports whether a flow of the file is probed from inside a workload.
+func (f *File) UsesWorkloads() bool {
+	for _, fl := range f.Flows {
+		if len(fl.Via) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// WorkloadNamespaces returns the source namespaces of the flows with Via, sorted and unique.
+func (f *File) WorkloadNamespaces() []string {
+	var out []string
+	for _, fl := range f.Flows {
+		if len(fl.Via) > 0 && !slices.Contains(out, fl.From) {
+			out = append(out, fl.From)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
 
 // Destination is a Service (Service, Namespace, Port) or a host (Host, Port).
@@ -182,6 +219,9 @@ func (f *File) check() error {
 		if err := fl.To.check(); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", where, err))
 		}
+		if err := checkVia(fl.Via); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", where, err))
+		}
 	}
 	if len(errs) > 0 {
 		return errors.Join(errs...)
@@ -195,6 +235,26 @@ func (f *File) check() error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// checkVia checks a label selector: Kubernetes label keys and values, at most ten of them.
+func checkVia(via map[string]string) error {
+	if via == nil {
+		return nil
+	}
+	if len(via) == 0 || len(via) > 10 {
+		return errors.New("via needs between 1 and 10 labels")
+	}
+	keys := slices.Sorted(maps.Keys(via))
+	for _, k := range keys {
+		if msgs := validation.IsQualifiedName(k); len(msgs) > 0 {
+			return fmt.Errorf("via: %q is not a label key: %s", k, strings.Join(msgs, "; "))
+		}
+		if msgs := validation.IsValidLabelValue(via[k]); len(msgs) > 0 {
+			return fmt.Errorf("via: %q is not a label value: %s", via[k], strings.Join(msgs, "; "))
+		}
+	}
+	return nil
 }
 
 func (d Destination) check() error {

@@ -8,7 +8,7 @@ bulkhead check --tenant tenant-alpha --tenant tenant-bravo \
   --report sarif=reports/bulkhead.sarif --report html=reports/bulkhead.html
 ```
 
-Network results carry `from` and `to` (a tenant namespace, `dns` or `internet`), which the HTML report uses to draw its matrix. Declared flows (`--flows`, [declared-flows.md](declared-flows.md)) carry them too, with the destination's namespace or host as `to`, and are listed in their own section instead of the matrix.
+Network results carry `from` and `to` (a tenant namespace, `dns` or `internet`), which the HTML report uses to draw its matrix. Declared flows (`--flows`, [declared-flows.md](declared-flows.md)) carry them too, with the destination's namespace or host as `to`, and are listed in their own section instead of the matrix. With `--probe-workloads`, every report names the pods that received a probe container (`workloadProbes` in JSON).
 
 Every format carries the same results. The exit code is the same whatever the format: 0 when every selected check passed, 1 when one failed or was inconclusive, 2 for a usage error, 3 when the checks could not run ([ADR 0018](adr/0018-checker-in-this-repository.md)).
 

@@ -38,17 +38,18 @@ type checkOptions struct {
 	levels     []string
 	ids        []string
 
-	kube          kube.Options
-	tenants       tenant.Options
-	readOnly      bool
-	dryRun        bool
-	policyReports bool
-	flowsPath     string
-	flows         *flows.File
-	reportSpecs   []string
-	reports       []reportFile
-	timeout       time.Duration
-	checkTimeout  time.Duration
+	kube           kube.Options
+	tenants        tenant.Options
+	readOnly       bool
+	dryRun         bool
+	policyReports  bool
+	probeWorkloads bool
+	flowsPath      string
+	flows          *flows.File
+	reportSpecs    []string
+	reports        []reportFile
+	timeout        time.Duration
+	checkTimeout   time.Duration
 }
 
 func newCheck() *cobra.Command {
@@ -90,6 +91,7 @@ func newCheck() *cobra.Command {
 	f.BoolVar(&o.dryRun, "dry-run", false, "send nothing; print every request the run would send")
 	f.BoolVar(&o.policyReports, "policy-reports", false, "also store the results in the cluster, as a PolicyReport (wgpolicyk8s.io/v1alpha2) named "+policyreport.Name+" in each tenant namespace")
 	f.StringVar(&o.flowsPath, "flows", "", "also probe the flows declared in this file (FLW-01, FLW-02; schemas/flows.schema.json)")
+	f.BoolVar(&o.probeWorkloads, "probe-workloads", false, "allow flows with via: probe from inside a running pod, in an ephemeral container that stays in the pod's spec until the pod is replaced")
 	f.DurationVar(&o.timeout, "timeout", 15*time.Minute, "time limit of the whole run")
 	f.DurationVar(&o.checkTimeout, "check-timeout", 3*time.Minute, "time limit of each check")
 	return cmd
@@ -119,6 +121,9 @@ func (o *checkOptions) run(ctx context.Context, w io.Writer) error {
 	if o.readOnly && o.dryRun {
 		return exitcode.Usagef("--read-only and --dry-run cannot be combined: a dry run sends nothing at all")
 	}
+	if o.probeWorkloads && o.readOnly {
+		return exitcode.Usagef("--probe-workloads adds containers to running pods, so it cannot be combined with --read-only")
+	}
 	if o.policyReports && (o.readOnly || o.dryRun) {
 		return exitcode.Usagef("--policy-reports stores objects in the cluster, so it cannot be combined with --read-only or --dry-run")
 	}
@@ -135,6 +140,10 @@ func (o *checkOptions) run(ctx context.Context, w io.Writer) error {
 		}
 		if err := o.flows.CheckSources(o.tenants.Namespaces); err != nil {
 			return exitcode.Usagef("--flows %s: %v", o.flowsPath, err)
+		}
+		if o.flows.UsesWorkloads() && !o.probeWorkloads {
+			return exitcode.Usagef("--flows %s: flows with via run inside a running pod of the tenant, in an ephemeral container "+
+				"that Kubernetes cannot remove until the pod is replaced (docs/adr/0020-probes-from-workloads.md); allow that with --probe-workloads", o.flowsPath)
 		}
 	}
 	if o.flows == nil && o.asksForFlows() {
@@ -188,7 +197,13 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 			return exitcode.Errorf("%v", err)
 		}
 	}
-	env := &runner.Env{Cluster: cluster, Tenants: tenants, Sandbox: sb, Impersonate: impersonate(cluster), Flows: o.flows}
+	probing := o.probeWorkloads && o.flows != nil && o.flows.UsesWorkloads()
+	if probing && mode == sandbox.Live {
+		if err := checks.PreflightWorkloadProbes(ctx, cluster.Client, o.flows.WorkloadNamespaces()); err != nil {
+			return exitcode.Errorf("%v", err)
+		}
+	}
+	env := &runner.Env{Cluster: cluster, Tenants: tenants, Sandbox: sb, Impersonate: impersonate(cluster), Flows: o.flows, ProbeWorkloads: probing}
 
 	// From here on, objects may be created. Clean-up runs once: before the report is printed,
 	// and on every early return. It uses a fresh context, so it also runs after Ctrl+C or the timeout.
@@ -213,6 +228,12 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 	}
 	rep.Run.IdentitiesConfirmed = mode != sandbox.DryRun
 	rep.Results = runner.Run(ctx, env, runner.Options{Checks: selected, CheckTimeout: o.checkTimeout})
+	if probing {
+		// A fresh context, like the clean-up: the probe containers are told to exit even after Ctrl+C.
+		fctx, fcancel := context.WithTimeout(context.Background(), time.Minute)
+		rep.WorkloadProbes = checks.FinishWorkloadProbes(fctx, env)
+		fcancel()
+	}
 	checks.ForgetRun(sb)
 	if mode == sandbox.DryRun {
 		rep.Requests = sb.Requests()

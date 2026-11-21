@@ -63,6 +63,8 @@ type Env struct {
 	Impersonate func(kube.Identity) (*kube.Cluster, error)
 	// Flows are the flows the team declared (--flows), or nil.
 	Flows *flows.File
+	// ProbeWorkloads allows probes from inside running workloads (--probe-workloads, ADR 0020).
+	ProbeWorkloads bool
 }
 
 // Func runs one check and returns one result per subject.
