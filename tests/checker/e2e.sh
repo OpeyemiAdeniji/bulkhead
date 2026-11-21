@@ -370,6 +370,106 @@ k -n tenant-alpha delete networkpolicy bhc-e2e-allow-orders > /dev/null
 k delete namespace "$SHARED" --wait=false > /dev/null
 rm -f "$flows_file" "$workload_flows"
 
+echo "== operator references at admission: a resource may not point into another tenant (research)"
+# A custom resource with a Secret reference that names its own namespace, which tenant admins
+# may create, like the resources of many operators. No operator is installed: the checks only
+# send dry runs, so none would ever see them.
+k apply -f - > /dev/null << 'EOF'
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata: {name: references.probe.bulkhead.io}
+spec:
+  group: probe.bulkhead.io
+  scope: Namespaced
+  names: {plural: references, singular: reference, kind: Reference}
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: [secretRef]
+              properties:
+                secretRef:
+                  type: object
+                  required: [name]
+                  properties: {name: {type: string}, namespace: {type: string}}
+EOF
+k wait --for=condition=Established crd/references.probe.bulkhead.io --timeout=60s > /dev/null
+for t in alpha bravo; do
+  k -n "tenant-$t" create role bhc-e2e-references --verb=create,get,list --resource=references.probe.bulkhead.io > /dev/null
+  k -n "tenant-$t" create rolebinding bhc-e2e-references --role=bhc-e2e-references --group="$t-admins" > /dev/null
+done
+refs_file="$(mktemp --suffix=.yaml)"
+cat > "$refs_file" << 'EOF'
+apiVersion: bulkhead.io/v1alpha1
+kind: OperatorReferences
+references:
+  - name: secret-ref
+    apiVersion: probe.bulkhead.io/v1
+    kind: Reference
+    resource: references
+    namespacePath: spec.secretRef.namespace
+    body: {spec: {secretRef: {name: credentials}}}
+EOF
+
+expect 2 "the operator reference checks need a references file" "need a references file: --operator-refs FILE" -- \
+  check "${TENANTS[@]}" --id XNS-02
+
+expect 1 "without an admission rule, a reference into another tenant is accepted: XNS-02 fails" \
+  "XNS-01 pass secret-ref, tenant-alpha" "XNS-02 fail secret-ref, tenant-alpha -> tenant-bravo" "the request was accepted" -- \
+  check "${TENANTS[@]}" --level research --operator-refs "$refs_file"
+
+k apply -f - > /dev/null << 'EOF'
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata: {name: no-cross-namespace-refs}
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules: [{apiGroups: [probe.bulkhead.io], apiVersions: ["*"], operations: [CREATE, UPDATE], resources: [references]}]
+  validations:
+    # The field is written namespace, not escaped: on Kubernetes 1.37, has() on the escaped
+    # __namespace__ was always false, so a rule written that way let every reference through.
+    - expression: "!has(object.spec.secretRef.namespace) || object.spec.secretRef.namespace == object.metadata.namespace"
+      message: the secret reference must stay in the namespace of the resource
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata: {name: no-cross-namespace-refs}
+spec:
+  policyName: no-cross-namespace-refs
+  validationActions: [Deny]
+EOF
+# The API server needs a moment to load a new policy.
+for _ in $(seq 1 30); do
+  "$BIN" check "${TENANTS[@]}" --level research --operator-refs "$refs_file" > /dev/null 2>&1 && break
+  sleep 2
+done
+expect 0 "with the admission rule, the reference into another tenant is refused before any operator sees it" \
+  "XNS-01 pass secret-ref, tenant-bravo" "XNS-02 pass secret-ref, tenant-alpha -> tenant-bravo" \
+  "refused by admission (no-cross-namespace-refs)" "0 fail" -- \
+  check "${TENANTS[@]}" --level research --operator-refs "$refs_file"
+expect 0 "the operator reference checks are dry runs, so they also run in read-only mode" \
+  "(read-only)" "XNS-02 pass secret-ref, tenant-bravo -> tenant-alpha" -- \
+  check "${TENANTS[@]}" --level research --operator-refs "$refs_file" --read-only --category operators
+if [ "$(k get references.probe.bulkhead.io -A --no-headers 2> /dev/null | wc -l)" -eq 0 ]; then
+  pass "the reference checks stored nothing"
+else
+  fail "a custom resource of the reference checks was stored"
+fi
+
+k delete validatingadmissionpolicybinding,validatingadmissionpolicy no-cross-namespace-refs > /dev/null
+for t in alpha bravo; do
+  k -n "tenant-$t" delete rolebinding,role bhc-e2e-references > /dev/null
+done
+k delete crd references.probe.bulkhead.io > /dev/null
+rm -f "$refs_file"
+
 echo "== interrupt: Ctrl+C while test pods exist"
 "$BIN" check "${TENANTS[@]}" --category network > "$out" 2>&1 &
 pid=$!

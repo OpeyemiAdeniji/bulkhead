@@ -15,6 +15,7 @@ import (
 	"github.com/OpeyemiAdeniji/bulkhead/internal/exitcode"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/flows"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/kube"
+	"github.com/OpeyemiAdeniji/bulkhead/internal/operatorrefs"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/sandbox"
 	"github.com/OpeyemiAdeniji/bulkhead/internal/tenant"
 )
@@ -65,6 +66,8 @@ type Env struct {
 	Flows *flows.File
 	// ProbeWorkloads allows probes from inside running workloads (--probe-workloads, ADR 0020).
 	ProbeWorkloads bool
+	// OperatorRefs are the references XNS-01 and XNS-02 test (--operator-refs, ADR 0021), or nil.
+	OperatorRefs *operatorrefs.File
 }
 
 // Func runs one check and returns one result per subject.

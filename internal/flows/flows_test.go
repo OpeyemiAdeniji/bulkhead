@@ -114,6 +114,8 @@ func TestBadFiles(t *testing.T) {
 		{"blocked with pair on another port", flow(ok + "  - {name: b, from: tenant-b, to: {service: s, namespace: ns, port: 81}, expect: blocked}\n"), "same destination (s.ns.svc:81)", false},
 		{"two documents", flow(ok) + "---\n" + flow(ok), "more than one document", false},
 		{"not yaml", "flows: [", "not valid YAML", false},
+		// Go's decoder would take "Expect" for "expect"; the schema does not.
+		{"field in the wrong case", flow("  - {name: a, from: tenant-a, to: {service: s, namespace: ns, port: 80}, expect: allowed, Expect: allowed}\n"), "Expect", true},
 		{"empty via", flow("  - {name: a, from: tenant-a, via: {}, to: {service: s, namespace: ns, port: 80}, expect: allowed}\n"), "between 1 and 10 labels", true},
 		{"bad via key", flow("  - {name: a, from: tenant-a, via: {'bad key': x}, to: {service: s, namespace: ns, port: 80}, expect: allowed}\n"), "is not a label key", true},
 		{"bad via value", flow("  - {name: a, from: tenant-a, via: {app: 'not ok!'}, to: {service: s, namespace: ns, port: 80}, expect: allowed}\n"), "is not a label value", true},

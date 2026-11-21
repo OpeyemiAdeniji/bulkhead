@@ -331,19 +331,19 @@ var checks = []Check{
 
 	// ---------------------------------------------------------------- operators (research)
 	{
-		ID: "XNS-01", Title: "An operator acts on a reference to the tenant's own objects",
-		Category: Operators, Level: Research, Mode: Active, Expect: Allowed,
-		Proves:       "The operator under test works for the tenant, so its refusal in XNS-02 is about the other namespace.",
-		DoesNotProve: "Anything about operators that are not tested.",
-		How:          "For an installed operator, create a custom resource in tenant A that references an object in tenant A, and check that the operator acts on it.",
-		Fix:          "Check that the operator is installed and watches the tenant's namespace.",
+		ID: "XNS-01", Title: "A custom resource that references the tenant's own namespace is accepted",
+		Category: Operators, Level: Research, Mode: ReadOnly, Expect: Allowed,
+		Proves:       "The tenant admin may create the listed custom resource, and the body in the references file is valid, so a refusal in XNS-02 is about the other namespace.",
+		DoesNotProve: "That the operator handles the resource correctly: the request is a dry run, so no operator sees it.",
+		How:          "As the tenant admin, create the custom resource in tenant A as a server-side dry run, with its namespace field (namespacePath in --operator-refs) set to tenant A. It must be accepted. Nothing is stored.",
+		Fix:          "Give tenant admins the right to create the resource, or correct the body and the namespacePath in the references file.",
 	},
 	{
-		ID: "XNS-02", Title: "An operator does not follow a reference into another tenant's namespace",
-		Category: Operators, Level: Research, Mode: Active, Expect: Blocked, Pair: "XNS-01",
-		Proves:       "The operator does not read or change another tenant's objects for tenant A, a class of weakness described in \"Breaking the Bulkhead\" (NDSS 2026).",
-		DoesNotProve: "That other fields or other custom resources of the same operator are safe. Only the tested reference is.",
-		How:          "Create a custom resource in tenant A that references an object in tenant B, and check that the operator refuses or ignores it.",
-		Fix:          "Upgrade or configure the operator so that it only follows references within the namespace of the resource, or restrict which namespaces it serves.",
+		ID: "XNS-02", Title: "A custom resource that references another tenant's namespace is refused",
+		Category: Operators, Level: Research, Mode: ReadOnly, Expect: Blocked, Pair: "XNS-01",
+		Proves:       "Tenant A cannot even submit a resource that would make an operator read or change tenant B's objects, the class of weakness described in \"Breaking the Bulkhead\" (NDSS 2026). The refusal comes before any operator sees the resource, whatever the operator's code does.",
+		DoesNotProve: "That the operator itself is safe: without the admission rule, a vulnerable operator would follow the reference. Other fields, and references that lead to cluster-wide objects, are not tested.",
+		How:          "As the admin of tenant A, create the same custom resource in tenant A as a server-side dry run, with its namespace field set to tenant B. It must be refused at admission. It counts only when XNS-01 passed for the same reference and tenant.",
+		Fix:          "Add an admission rule (a ValidatingAdmissionPolicy or a policy engine) that refuses the resource when its namespace field differs from the resource's own namespace, or when the requester may not access the referenced object.",
 	},
 }

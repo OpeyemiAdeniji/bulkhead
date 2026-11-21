@@ -252,6 +252,9 @@ func TestFlowsFileErrorsStopBeforeTheCluster(t *testing.T) {
 		{[]string{"--tenant", "tenant-alpha", "--category", "flows"}, "need a flows file"},
 		{[]string{"--tenant", "tenant-alpha", "--flows", via}, "allow that with --probe-workloads"},
 		{[]string{"--tenant", "tenant-alpha", "--flows", via, "--probe-workloads", "--read-only"}, "cannot be combined with --read-only"},
+		{[]string{"--tenant", "tenant-alpha", "--id", "XNS-02"}, "need a references file: --operator-refs FILE"},
+		{[]string{"--tenant", "tenant-alpha", "--category", "operators"}, "need a references file"},
+		{[]string{"--tenant", "tenant-alpha", "--operator-refs", good}, "does not match the operator references format"},
 	} {
 		code, out, errOut := run(t, append([]string{"check"}, c.args...)...)
 		if code != exitcode.Usage || !strings.Contains(errOut, c.want) || out != "" {

@@ -58,7 +58,7 @@ One item of this package waits for the first active check, because only then doe
 
 - [x] A file in which teams declare their own expected flows ("alpha may reach the shared database, nothing else may"), with a JSON Schema. `--flows` ([declared-flows.md](declared-flows.md), [ADR 0019](adr/0019-declared-flows-file.md)): FLW-01 and FLW-02, with a pair per destination; tested on kind against a shared service.
 - [x] Probes from inside a running workload with an ephemeral container, as an option. `via` in the flows file with `--probe-workloads` ([ADR 0020](adr/0020-probes-from-workloads.md)); tested on kind with a policy that only the `app: orders` pods may use.
-- [ ] Research category, off by default: XNS-01 and XNS-02 (cross-namespace references through installed operators), with its own safety rules and an ADR.
+- [x] Research category, off by default: XNS-01 and XNS-02 (cross-namespace references through installed operators), with its own safety rules and an ADR. [ADR 0021](adr/0021-operator-reference-checks.md): after reading the paper, they test at admission with dry runs instead of making an operator act; [operator-references.md](operator-references.md).
 
 ## 7. Tenancy profiles
 
