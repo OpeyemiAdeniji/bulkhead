@@ -1,0 +1,44 @@
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: disallow-latest-image-tag-ephemeral
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+  annotations:
+    policies.kyverno.io/title: Disallow the latest image tag in ephemeral containers
+    policies.kyverno.io/description: >-
+      The rule of disallow-latest-image-tag for ephemeral containers, which are added to a
+      running pod through the pods/ephemeralcontainers subresource (kubectl debug). It is a
+      policy of its own because a policy that also matches a subresource gets no rules
+      generated for Deployments and other pod controllers, so disallow-latest-image-tag
+      matches pods only. It judges admission only: the subresource cannot be listed, so there
+      is nothing to scan in the background.
+spec:
+  validationActions: [Deny]
+  evaluation:
+    background:
+      enabled: false
+  matchConstraints:
+    namespaceSelector:
+      matchLabels:
+        app.kubernetes.io/managed-by: bulkhead
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["UPDATE"]
+        resources: ["pods/ephemeralcontainers"]
+  variables:
+    # Only the ephemeral containers that this request adds: an ephemeral container cannot be
+    # removed, so an old one must not block adding a new one.
+    - name: added
+      expression: >-
+        object.spec.?ephemeralContainers.orValue([]).map(c, c.image).filter(i,
+        !oldObject.spec.?ephemeralContainers.orValue([]).exists(o, o.image == i))
+    - name: unpinned
+      expression: >-
+        variables.added.filter(i, !(i.contains('@') ||
+        (i.substring(i.lastIndexOf('/') + 1).contains(':') && !i.endsWith(':latest'))))
+  validations:
+    - expression: "size(variables.unpinned) == 0"
+      messageExpression: >-
+        'Image ' + variables.unpinned.join(', ') + ' uses the tag latest or has no tag. Fix: pin the image to a version, for example busybox:1.36, or to a digest. Runbook: {{ .Values.runbookBaseURL }}/policy-disallow-latest-tag.md'
