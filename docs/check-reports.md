@@ -10,7 +10,7 @@ bulkhead check --tenant tenant-alpha --tenant tenant-bravo \
 
 Network results carry `from` and `to` (a tenant namespace, `dns` or `internet`), which the HTML report uses to draw its matrix. Declared flows (`--flows`, [declared-flows.md](declared-flows.md)) carry them too, with the destination's namespace or host as `to`, and are listed in their own section instead of the matrix. With `--probe-workloads`, every report names the pods that received a probe container (`workloadProbes` in JSON).
 
-Every report names the tenancy profile of the run (`--profile`, `run.profile` in JSON, [ADR 0022](adr/0022-tenancy-profiles.md)). A check that does not apply to the profile is reported as skipped, with the reason. Every format carries the same results. The exit code is the same whatever the format: 0 when every selected check passed, 1 when one failed or was inconclusive, 2 for a usage error, 3 when the checks could not run ([ADR 0018](adr/0018-checker-in-this-repository.md)).
+Every report names the tenancy profile of the run (`--profile`, `run.profile` in JSON, [ADR 0022](adr/0022-tenancy-profiles.md)). A check that does not apply to the profile is reported as skipped, with the reason ([tenancy-profiles.md](tenancy-profiles.md)). Every format carries the same results. The exit code is the same whatever the format: 0 when every selected check passed, 1 when one failed or was inconclusive, 2 for a usage error, 3 when the checks could not run ([ADR 0018](adr/0018-checker-in-this-repository.md)).
 
 | Format | For | What it contains |
 |---|---|---|

@@ -134,6 +134,35 @@ jobs:
           echo "--- kernel log (shared by all nodes, because they are containers on one host)"
           docker exec bulkhead-control-plane dmesg 2>&1 | grep -iE 'oom|out of memory|killed process|not permitted|denied' | tail -20 || true
 
+  # The capsule profile of the checker against a real Capsule (docs/adr/0022-tenancy-profiles.md):
+  # bare tenants must fail exactly the protections Capsule does not install by itself, and
+  # configured tenants must pass. It is not a required check yet.
+  capsule:
+    name: capsule
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install pinned tools
+        run: |
+          bash scripts/install-tools.sh "$HOME/.local/bin" kind kubectl helm
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Build the cluster
+        run: make cluster-up
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Install Capsule and test the capsule profile
+        run: make test-capsule
+      - name: Show the cluster state after a failure
+        if: failure()
+        run: |
+          kubectl --context kind-bulkhead get tenants || true
+          kubectl --context kind-bulkhead get pods -A -o wide || true
+          kubectl --context kind-bulkhead -n capsule-system get pods -o jsonpath='{range .items[*]}{.metadata.name} restarts={.status.containerStatuses[0].restartCount}{"\n"}{end}' || true
+          kubectl --context kind-bulkhead -n capsule-system logs deploy/capsule-controller-manager --tail=40 || true
+          kubectl --context kind-bulkhead get events -A --sort-by=.lastTimestamp | tail -40 || true
+
   policy:
     name: policy
     runs-on: ubuntu-latest

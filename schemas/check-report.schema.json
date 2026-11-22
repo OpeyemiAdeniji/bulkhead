@@ -26,7 +26,7 @@
       "properties": {
         "id": { "type": "string", "pattern": "^[0-9]{8}t[0-9]{6}-[0-9a-f]{8}$" },
         "mode": { "enum": ["live", "read-only", "dry-run"] },
-        "profile": { "description": "The tenancy profile (docs/adr/0022-tenancy-profiles.md).", "enum": ["namespaces"] },
+        "profile": { "description": "The tenancy profile (docs/adr/0022-tenancy-profiles.md).", "enum": ["namespaces", "capsule"] },
         "startedAt": { "type": "string", "format": "date-time" },
         "finishedAt": { "type": "string", "format": "date-time" },
         "context": { "type": "string" },

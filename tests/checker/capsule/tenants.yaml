@@ -1,0 +1,83 @@
+# Capsule tenants for tests/checker/capsule-e2e.sh.
+#
+# capb-*: bare tenants, with owners only. Capsule installs no network policy, quota, limit range
+# or Pod Security level by itself, so the checker must report exactly those gaps.
+# capc-*: tenants configured the way a platform would, with every protection the checks test.
+# The fields networkPolicies, limitRanges, resourceQuotas, serviceOptions and additionalMetadata
+# are deprecated in Capsule 0.15 (it warns), but still applied; the replacements are rules and
+# TenantReplications.
+apiVersion: capsule.clastix.io/v1beta2
+kind: Tenant
+metadata: {name: capb-alpha}
+spec:
+  owners: [{name: capb-alpha-admins, kind: Group}]
+---
+apiVersion: capsule.clastix.io/v1beta2
+kind: Tenant
+metadata: {name: capb-bravo}
+spec:
+  owners: [{name: capb-bravo-admins, kind: Group}]
+---
+apiVersion: capsule.clastix.io/v1beta2
+kind: Tenant
+metadata: {name: capc-alpha}
+spec:
+  owners: [{name: capc-alpha-admins, kind: Group}]
+  namespaceOptions:
+    additionalMetadata:
+      labels: {pod-security.kubernetes.io/enforce: restricted}
+  serviceOptions:
+    allowedServices: {nodePort: false, loadBalancer: false, externalName: false}
+  networkPolicies:
+    items:
+      - policyTypes: [Ingress, Egress]
+        podSelector: {}
+        ingress:
+          - from: [{namespaceSelector: {matchLabels: {capsule.clastix.io/tenant: capc-alpha}}}]
+        egress:
+          - to: [{namespaceSelector: {matchLabels: {capsule.clastix.io/tenant: capc-alpha}}}]
+          - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}}]
+            ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
+  limitRanges:
+    items:
+      - limits:
+          - type: Container
+            default: {cpu: 100m, memory: 64Mi}
+            defaultRequest: {cpu: 50m, memory: 32Mi}
+            max: {cpu: "1", memory: 512Mi}
+  resourceQuotas:
+    scope: Tenant
+    items:
+      - hard: {requests.cpu: "1", requests.memory: 1Gi, limits.cpu: "2", limits.memory: 2Gi, pods: "10"}
+---
+apiVersion: capsule.clastix.io/v1beta2
+kind: Tenant
+metadata: {name: capc-bravo}
+spec:
+  owners: [{name: capc-bravo-admins, kind: Group}]
+  namespaceOptions:
+    additionalMetadata:
+      labels: {pod-security.kubernetes.io/enforce: restricted}
+  serviceOptions:
+    allowedServices: {nodePort: false, loadBalancer: false, externalName: false}
+  networkPolicies:
+    items:
+      - policyTypes: [Ingress, Egress]
+        podSelector: {}
+        ingress:
+          - from: [{namespaceSelector: {matchLabels: {capsule.clastix.io/tenant: capc-bravo}}}]
+        egress:
+          - to: [{namespaceSelector: {matchLabels: {capsule.clastix.io/tenant: capc-bravo}}}]
+          - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}}]
+            ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
+  limitRanges:
+    items:
+      - limits:
+          - type: Container
+            default: {cpu: 100m, memory: 64Mi}
+            defaultRequest: {cpu: 50m, memory: 32Mi}
+            max: {cpu: "1", memory: 512Mi}
+  resourceQuotas:
+    scope: Tenant
+    items:
+      - hard: {requests.cpu: "1", requests.memory: 1Gi, limits.cpu: "2", limits.memory: 2Gi, pods: "10"}

@@ -48,7 +48,7 @@ func TestDiscover(t *testing.T) {
 		binding("tenant-bravo", DefaultAdminBinding, rbacv1.Subject{Kind: rbacv1.UserKind, Name: "bob"}, group("bravo-admins")),
 	)
 	o := Options{Namespaces: []string{"tenant-alpha", "tenant-bravo"}, AdminBinding: DefaultAdminBinding, ViewerBinding: DefaultViewerBinding}
-	ts, err := Discover(context.Background(), client, o)
+	ts, err := Discover(context.Background(), client, nil, o)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,11 +62,11 @@ func TestDiscover(t *testing.T) {
 		t.Errorf("bravo: a group must win over a user, and no viewer binding means no viewer: %+v", b)
 	}
 
-	_, err = Discover(context.Background(), client, Options{Namespaces: []string{"missing"}, AdminBinding: DefaultAdminBinding})
+	_, err = Discover(context.Background(), client, nil, Options{Namespaces: []string{"missing"}, AdminBinding: DefaultAdminBinding})
 	if err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Errorf("missing namespace: %v", err)
 	}
-	_, err = Discover(context.Background(), client, Options{Namespaces: []string{"tenant-bravo"}, AdminBinding: "other"})
+	_, err = Discover(context.Background(), client, nil, Options{Namespaces: []string{"tenant-bravo"}, AdminBinding: "other"})
 	if err == nil || !strings.Contains(err.Error(), "--admin-binding") {
 		t.Errorf("missing binding: %v", err)
 	}

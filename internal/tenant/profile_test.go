@@ -9,8 +9,8 @@ func TestProfiles(t *testing.T) {
 	if err := CheckProfile(ProfileNamespaces); err != nil {
 		t.Errorf("namespaces: %v", err)
 	}
-	if err := CheckProfile("capsule"); err == nil || !strings.Contains(err.Error(), "not built yet") {
-		t.Errorf("capsule is planned, and the message must say so: %v", err)
+	if err := CheckProfile("vcluster"); err == nil || !strings.Contains(err.Error(), "not built yet") {
+		t.Errorf("vcluster is planned, and the message must say so: %v", err)
 	}
 	if err := CheckProfile("hnc"); err == nil || !strings.Contains(err.Error(), "unknown profile") {
 		t.Errorf("an unknown profile: %v", err)

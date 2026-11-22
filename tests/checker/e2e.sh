@@ -485,8 +485,8 @@ expect 0 "with --admin-binding, the access checks run on plain namespaces" \
   --read-only --id ACC-02,ACC-03
 k delete namespace e2e-plain-a e2e-plain-b --wait=false > /dev/null
 
-expect 2 "a profile that is not built yet is refused before the run" "the capsule profile is not built yet" -- \
-  check "${TENANTS[@]}" --profile capsule
+expect 2 "a profile that is not built yet is refused before the run" "the vcluster profile is not built yet" -- \
+  check "${TENANTS[@]}" --profile vcluster
 
 echo "== interrupt: Ctrl+C while test pods exist"
 "$BIN" check "${TENANTS[@]}" --category network > "$out" 2>&1 &

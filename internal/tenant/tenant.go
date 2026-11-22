@@ -11,6 +11,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/OpeyemiAdeniji/bulkhead/internal/kube"
@@ -22,8 +23,11 @@ const TesterUser = "bulkhead-check"
 
 // Tenant is one tenant under test.
 type Tenant struct {
-	Name      string `json:"name"`
+	Name string `json:"name"`
+	// Namespace is the namespace the checks use.
 	Namespace string `json:"namespace"`
+	// Namespaces are all the namespaces of a tenant that has several (the capsule profile).
+	Namespaces []string `json:"namespaces,omitempty"`
 	// Admin is the identity of the tenant's admins. Every tenant has one.
 	Admin kube.Identity `json:"admin"`
 	// Viewer is the identity of the tenant's read-only users, or nil when the tenant has none.
@@ -83,10 +87,14 @@ func (o Options) Validate() error {
 	return nil
 }
 
-// Discover reads each namespace and its role bindings, and returns the tenants.
-func Discover(ctx context.Context, client kubernetes.Interface, o Options) ([]Tenant, error) {
+// Discover returns the tenants under test, as the profile finds them. The dynamic client is
+// needed by profiles that read custom resources, such as capsule.
+func Discover(ctx context.Context, client kubernetes.Interface, dyn dynamic.Interface, o Options) ([]Tenant, error) {
 	if err := o.Validate(); err != nil {
 		return nil, err
+	}
+	if o.Profile == ProfileCapsule {
+		return discoverCapsule(ctx, dyn, o)
 	}
 	var out []Tenant
 	for _, ns := range o.Namespaces {

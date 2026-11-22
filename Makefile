@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help setup lint secrets hooks-update validate validate-exceptions test-contract test-exceptions chart-test test-isolation cluster-up cluster-down tenants-apply kyverno-up policy-test test-policy-live checks-doc checker-build checker-test test-checker-e2e
+.PHONY: help setup lint secrets hooks-update validate validate-exceptions test-contract test-exceptions chart-test test-isolation cluster-up cluster-down tenants-apply kyverno-up policy-test test-policy-live checks-doc checker-build checker-test test-checker-e2e test-capsule
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -62,6 +62,9 @@ checker-build: ## Build the checker into bin/bulkhead
 
 test-checker-e2e: ## Run the checker against the local cluster with both tenants (make cluster-up tenants-apply first)
 	bash tests/checker/e2e.sh
+
+test-capsule: ## Install Capsule on the local cluster and test the capsule profile against it (make cluster-up first)
+	bash tests/checker/capsule-e2e.sh
 
 checker-test: ## Format check, vet and unit tests of the checker (CI also runs the race detector, govulncheck and golangci-lint)
 	@unformatted="$$(gofmt -l .)"; if [ -n "$$unformatted" ]; then echo "run gofmt -w on:"; echo "$$unformatted"; exit 1; fi
