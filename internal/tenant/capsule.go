@@ -14,8 +14,8 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
-// ProfileCapsule: a tenant is a Capsule Tenant (capsule.clastix.io/v1beta2) with owners and
-// namespaces. Measured on kind with Capsule 0.15.2: the owners get the cluster roles admin and
+// ProfileCapsule is the profile in which a tenant is a Capsule Tenant (capsule.clastix.io/v1beta2)
+// with owners and namespaces. Measured on kind with Capsule 0.15.2: the owners get the cluster roles admin and
 // capsule-namespace-deleter through role bindings with hashed names (capsule:managed:<hash>),
 // so the profile reads the owners and namespaces from the Tenant, not from role bindings.
 const ProfileCapsule = "capsule"
