@@ -63,7 +63,7 @@ One item of this package waits for the first active check, because only then doe
 ## 7. Tenancy profiles
 
 - [x] Profile "namespaces": a plain namespace per tenant, as Bulkhead's charts make. Tested in CI. `--profile namespaces` (the default, [ADR 0022](adr/0022-tenancy-profiles.md)); the end-to-end test also runs it on two namespaces that Bulkhead did not make, with their own role binding (`--admin-binding`).
-- [ ] Profile "capsule", tested in CI against Capsule.
+- [x] Profile "capsule", tested in CI against Capsule. `--profile capsule` ([tenancy-profiles.md](tenancy-profiles.md)); the CI job `capsule` installs Capsule 0.15.2: bare tenants fail exactly the protections Capsule does not install, configured tenants pass every check.
 - [ ] Profile "vcluster", tested in CI against vCluster.
 
 ## 8. Tests

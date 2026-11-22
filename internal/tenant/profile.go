@@ -26,6 +26,13 @@ type profile struct {
 
 var profiles = []profile{
 	{name: ProfileNamespaces},
+	{name: ProfileCapsule, notApplicable: map[string]string{
+		// Measured on Capsule 0.15.2: the owners get the cluster role admin in each namespace,
+		// on purpose, so that they manage access to their namespaces themselves.
+		"GRD-05": "Capsule gives tenant owners the admin role in their namespaces, so that they can bind others to it (self-service by design)",
+		"ACC-04": "a Capsule tenant has owners, and no read-only viewer role",
+		"ACC-05": "a Capsule tenant has owners, and no read-only viewer role",
+	}},
 }
 
 // Profiles returns the names of the profiles.
@@ -38,7 +45,7 @@ func Profiles() []string {
 }
 
 // planned are the profiles of ADR 0022 that are not built yet.
-var planned = []string{"capsule", "vcluster"}
+var planned = []string{"vcluster"}
 
 // CheckProfile returns an error for an unknown profile.
 func CheckProfile(name string) error {

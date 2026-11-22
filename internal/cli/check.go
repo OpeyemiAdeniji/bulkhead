@@ -143,8 +143,12 @@ func (o *checkOptions) run(ctx context.Context, w io.Writer) error {
 		if o.flows, err = flows.Load(o.flowsPath); err != nil {
 			return exitcode.Usagef("--flows %v", err)
 		}
-		if err := o.flows.CheckSources(o.tenants.Namespaces); err != nil {
-			return exitcode.Usagef("--flows %s: %v", o.flowsPath, err)
+		// With the namespaces profile, --tenant names the namespaces, so the sources can be checked
+		// now; other profiles find their namespaces on the cluster, and are checked after that.
+		if o.tenants.Profile == tenant.ProfileNamespaces {
+			if err := o.flows.CheckSources(o.tenants.Namespaces); err != nil {
+				return exitcode.Usagef("--flows %s: %v", o.flowsPath, err)
+			}
 		}
 		if o.flows.UsesWorkloads() && !o.probeWorkloads {
 			return exitcode.Usagef("--flows %s: flows with via run inside a running pod of the tenant, in an ephemeral container "+
@@ -196,9 +200,22 @@ func (o *checkOptions) execute(ctx context.Context, w io.Writer, selected []cata
 		return exitcode.Errorf("ask the API server who you are (SelfSubjectReview): %v", err)
 	}
 	rep.Run.User = me.String()
-	tenants, err := tenant.Discover(ctx, cluster.Client, o.tenants)
+	var tenantDyn dynamic.Interface
+	if o.tenants.Profile == tenant.ProfileCapsule {
+		if tenantDyn, err = newDynamic(cluster); err != nil {
+			return exitcode.Errorf("%v", err)
+		}
+	}
+	tenants, err := tenant.Discover(ctx, cluster.Client, tenantDyn, o.tenants)
 	if err != nil {
 		return exitcode.Errorf("%v", err)
+	}
+	// The checks between tenants use each tenant's namespace; a flows file names namespaces too.
+	o.tenants.Namespaces = namespacesOf(tenants)
+	if o.flows != nil && o.tenants.Profile != tenant.ProfileNamespaces {
+		if err := o.flows.CheckSources(o.tenants.Namespaces); err != nil {
+			return exitcode.Usagef("--flows %s: %v", o.flowsPath, err)
+		}
 	}
 	rep.Tenants = tenants
 	var dyn dynamic.Interface
@@ -310,6 +327,15 @@ func writePolicyReports(dyn dynamic.Interface, rep *report.Report, interrupted e
 		rep.PolicyReports.Error = err.Error()
 	}
 	return err
+}
+
+// namespacesOf returns the namespace each tenant's checks use.
+func namespacesOf(ts []tenant.Tenant) []string {
+	out := make([]string, 0, len(ts))
+	for _, t := range ts {
+		out = append(out, t.Namespace)
+	}
+	return out
 }
 
 // asksFor reports whether --id or --category names a check of the category.
