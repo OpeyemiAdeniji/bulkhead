@@ -50,6 +50,22 @@ for t in capb-alpha capb-bravo capc-alpha capc-bravo; do
   done
   [ "$created" -eq 1 ] || { echo "the owner of $t could not create its namespace"; exit 1; }
 done
+# Wait until each Tenant lists its namespace. The namespace exists as soon as the owner creates
+# it, but Capsule writes it into status.namespaces a little later, and the checker reads the
+# tenant's namespaces from there; a run that starts too early stops with "has no namespace yet".
+for t in capb-alpha capb-bravo capc-alpha capc-bravo; do
+  listed=0
+  since=$SECONDS
+  for _ in $(seq 1 60); do
+    if k get tenant "$t" -o jsonpath='{.status.namespaces}' 2> /dev/null | grep -q "\"$t-1\""; then
+      listed=1
+      break
+    fi
+    sleep 2
+  done
+  [ "$listed" -eq 1 ] || { echo "Capsule did not list $t-1 in the status of tenant $t"; k get tenant "$t" -o yaml; exit 1; }
+  echo "      tenant $t listed $t-1 after waiting $((SECONDS - since)) s"
+done
 # Wait until Capsule has put the configured protections into the namespaces.
 for t in capc-alpha capc-bravo; do
   for _ in $(seq 1 40); do
@@ -71,10 +87,15 @@ run() {
 # judge NAME CODE EXPECTED_CODE EXPECTED_FAILING_CHECKS: the run's exit code, the checks with a
 # failed result, and the checks that must be skipped for the profile.
 judge() {
-  python3 - "$work/$1.json" "$2" "$3" "$4" << 'EOF'
+  python3 - "$work/$1.json" "$2" "$3" "$4" "$work/$1.err" << 'EOF'
 import json, sys
-path, code, want_code, want_fail = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
-r = json.load(open(path))
+path, code, want_code, want_fail, err = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4], sys.argv[5]
+try:
+    r = json.load(open(path))
+except ValueError:
+    # No report: the checker stopped before it wrote one. Show why.
+    print(f"the checker wrote no report (exit code {code}); its errors: {open(err).read().strip()[:600]}")
+    sys.exit(1)
 assert r["run"]["profile"] == "capsule", r["run"]["profile"]
 failing = sorted({x["check"] for x in r["results"] if x["status"] in ("fail", "error", "inconclusive")})
 want = sorted(want_fail.split()) if want_fail else []
@@ -116,7 +137,10 @@ fi
 # Which layer protects Capsule's own network policy: its webhook, since the admin role may delete network policies.
 if python3 -c "
 import json, sys
-r = json.load(open('$work/configured.json'))
+try:
+    r = json.load(open('$work/configured.json'))
+except ValueError:
+    sys.exit(1)  # no report; the configured run above says why
 ok = [x for x in r['results'] if x['check'] == 'GRD-02' and x['status'] == 'pass' and 'projectcapsule.dev' in x.get('message', '')]
 sys.exit(0 if len(ok) == 2 else 1)"; then
   pass "Capsule's own webhook refuses the deletion of its network policies (GRD-02)"
